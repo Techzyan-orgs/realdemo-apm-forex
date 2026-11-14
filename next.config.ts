@@ -18,6 +18,8 @@ const csp = [
 const nextConfig: NextConfig = {
   // Cache Components is off: this app is mostly per-request data (rates, orders, KYC).
   cacheComponents: false,
+  // separate build dirs let several dev servers run side by side (e2e / parallel work)
+  distDir: process.env.NEXT_DIST_DIR ?? ".next",
   serverExternalPackages: ["sharp", "@prisma/client"],
   turbopack: {
     rules: {
