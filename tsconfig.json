@@ -34,11 +34,11 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts",
-    ".next-3210/types/**/*.ts",
-    ".next-3210/dev/types/**/*.ts"
+    "**/*.mts"
   ],
   "exclude": [
-    "node_modules"
+    "node_modules",
+    ".claude",
+    ".next-*"
   ]
 }
