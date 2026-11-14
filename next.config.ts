@@ -1,3 +1,4 @@
+import path from "node:path";
 import type { NextConfig } from "next";
 
 const isDev = process.env.NODE_ENV !== "production";
@@ -22,6 +23,9 @@ const nextConfig: NextConfig = {
   distDir: process.env.NEXT_DIST_DIR ?? ".next",
   serverExternalPackages: ["sharp", "@prisma/client"],
   turbopack: {
+    // pin the root: git worktrees nested under the repo would otherwise make Turbopack pick the
+    // outer lockfile and watch sibling checkouts (their builds trigger endless reloads here)
+    root: path.resolve(__dirname),
     rules: {
       "*.css": {
         loaders: ["@tailwindcss/turbopack"],
