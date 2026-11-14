@@ -9,7 +9,7 @@ const csp = [
   "img-src 'self' data: blob: https://lh3.googleusercontent.com https://flagcdn.com",
   "font-src 'self' data:",
   "connect-src 'self'" + (isDev ? " ws: wss:" : ""),
-  "frame-src https://www.google.com https://maps.google.com",
+  "frame-src 'self' https://www.google.com https://maps.google.com",
   "frame-ancestors 'none'",
   "base-uri 'self'",
   "form-action 'self'",
@@ -46,6 +46,14 @@ const nextConfig: NextConfig = {
       {
         source: "/(admin|order|checkout)/:path*",
         headers: [{ key: "X-Robots-Tag", value: "noindex, nofollow" }],
+      },
+      {
+        // admin KYC review embeds PDF documents in a same-origin <iframe> preview
+        source: "/api/admin/orders/:id/documents/:docId",
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "Content-Security-Policy", value: "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; frame-ancestors 'self'" },
+        ],
       },
     ];
   },
