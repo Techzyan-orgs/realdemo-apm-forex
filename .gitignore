@@ -45,3 +45,4 @@ next-env.d.ts
 /.vitest
 /.next-*
 /storage-*
+/.claude/worktrees
