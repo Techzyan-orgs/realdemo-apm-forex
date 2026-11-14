@@ -9,7 +9,8 @@ const DB = process.env.E2E_DB ?? "e2e.db";
 const env = {
   DATABASE_URL: `file:./${DB}`,
   STORAGE_DIR: `./storage-${DB.replace(/\W/g, "")}`,
-  NEXT_DIST_DIR: `.next-${PORT}`,
+  // nested under .next so the dev file-watcher ignores it (a sibling .next-* dir causes reload loops)
+  NEXT_DIST_DIR: `.next/e2e-${PORT}`,
   DISABLE_RATE_LIMIT: "false",
   NEXT_PUBLIC_SITE_URL: `http://localhost:${PORT}`,
 };
