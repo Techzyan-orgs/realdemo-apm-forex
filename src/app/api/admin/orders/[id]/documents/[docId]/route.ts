@@ -32,7 +32,7 @@ export async function GET(req: Request, ctx: { params: Promise<{ id: string; doc
       "X-Content-Type-Options": "nosniff",
       // allow the admin page to embed PDFs in an <iframe> preview
       "X-Frame-Options": "SAMEORIGIN",
-      "Content-Security-Policy": "default-src 'none'; img-src 'self'; style-src 'unsafe-inline'; frame-ancestors 'self'",
+      "Content-Security-Policy": "frame-ancestors 'self'",
     },
   });
 }
