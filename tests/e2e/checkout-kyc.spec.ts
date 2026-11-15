@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { day, fillBuyKyc, goToCheckout, HARNESS, upload } from "./checkout-helpers";
+import { day, fillBuyKyc, goToCheckout, gotoHarness, upload } from "./checkout-helpers";
 
 test("Courier order: mandatory banner, cannot submit without documents, then submits", async ({ page }) => {
   await goToCheckout(page, "COURIER", { currency: "USD", amount: "400", mobile: "9811112222" });
@@ -65,8 +65,8 @@ test("Track Order: wrong mobile -> generic not-found; correct mobile -> timeline
   await page.waitForURL(/\/order\/APM-/);
   const ref = (await page.getByTestId("order-ref").textContent())!.trim();
 
-  await page.goto(HARNESS);
-  await page.getByRole("button", { name: "Track Order" }).click();
+  await gotoHarness(page);
+  await page.locator("#main").getByRole("button", { name: "Track Order" }).click();
   await page.getByTestId("track-ref").fill(ref);
   await page.getByTestId("track-mobile").fill("9000000000");
   await page.getByTestId("track-submit").click();

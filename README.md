@@ -51,9 +51,13 @@ npm run dev
 - `db:seed` creates settings, the 30 currencies (rates from the feed, or approximate fallbacks if
   offline), the Dum Dum store, 4 hero banners and 8 clearly-labelled **placeholder** reviews.
   `--demo` adds 6 demo orders for admin UI work.
-- `assets:fetch` downloads free-licence banners, banknote images and flags into `/public`
-  (credits in `public/*/CREDITS.json`) and generates designed fallback tiles when a licensed
-  image is unavailable. The generated assets are committed, so this is only needed to refresh them.
+- `assets:fetch` downloads free-licence hero banners (Unsplash) and flags (flagcdn) into `/public`
+  and looks for licensed banknote photos on Wikimedia Commons (credits in `public/*/CREDITS.json`).
+  Where no suitably licensed current-series photo is found it generates a designed tile (flag,
+  symbol, code, name); the committed currency images are all designed tiles for now. The generated
+  assets are committed, so this is only needed to refresh them.
+- Admin-uploaded banners are stored through the `StorageProvider` and served from `/media/banners/...`
+  (files added to `/public` at runtime are not served by `next start`).
 
 ## Scripts
 
@@ -62,7 +66,7 @@ npm run dev
 | `dev`, `build`, `start` | Next.js |
 | `lint`, `typecheck` | ESLint, `tsc --noEmit` |
 | `test` | vitest unit tests (`tests/unit`) - pricing, compliance, order state machine, ... |
-| `test:e2e` | Playwright (`tests/e2e`). Spins up its own dev server on port 3210 with a fresh `prisma/e2e.db` |
+| `test:e2e` | Playwright (`tests/e2e`). Spins up its own dev server on port 3210 with a fresh `prisma/e2e.db` (reset + seeded with `--demo`), warms every route first (`tests/e2e/warmup.ts`). Uses dev-only helpers (`/dev/calculator-harness`, `POST /api/admin/dev/orders`) that return 404 in production |
 | `db:migrate`, `db:deploy`, `db:seed` | Prisma |
 | `assets:fetch` | Download/optimise images into `/public` |
 | `reviews:sync` | Pull Google reviews into the `Review` table (needs `GOOGLE_PLACES_API_KEY`) |
@@ -102,6 +106,14 @@ npm run dev
 - **Rates**: `RateProvider` interface (`src/lib/rates.ts`) with the open.er-api.com default;
   customer rates = reference x (1 ± margin%). Admin can refresh or override per currency.
 - Next.js 16 renamed `middleware.ts` to `proxy.ts`; the admin guard is applied in `src/proxy.ts`.
+
+## Known gaps
+
+- No Lighthouse/axe audit has been run yet (spec definition of done asks for 90+ mobile Performance
+  and Accessibility). Responsive checks were done visually at 1440, 1024 and 360 px.
+- Realtime is in-process (single Node instance).
+- The Track Order rate limit and other limits key on `X-Forwarded-For`; deploy behind a proxy that
+  sets it, otherwise clients can spoof it.
 
 ## Admin auth (deferred)
 
