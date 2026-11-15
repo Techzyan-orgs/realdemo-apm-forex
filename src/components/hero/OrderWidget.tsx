@@ -1,5 +1,5 @@
 "use client";
-import { ArrowRight, ShieldCheck } from "lucide-react";
+import { ArrowRight } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
 import { countryOptions, CountryCombobox } from "@/components/hero/CountryCombobox";
 import { Button } from "@/components/ui/Button";
@@ -106,7 +106,9 @@ export function OrderWidget({
               ? "Select a purpose"
               : k === "country" || k === "currency"
                 ? "Select a country"
-                : i.message;
+                : k === "mobile"
+                  ? "10 digits, starting 6-9"
+                  : i.message;
       }
       setErrors(errs);
       return;
@@ -136,11 +138,11 @@ export function OrderWidget({
       }
       data-testid="order-widget"
       className={cn(
-        "rounded-[24px] border border-line/80 bg-surface p-2 shadow-[0_30px_80px_-40px_rgba(14,23,38,0.55)]",
+        "rounded-[22px] border border-line/80 bg-surface p-1.5 shadow-[0_30px_80px_-40px_rgba(14,23,38,0.55)]",
         className,
       )}
     >
-      <div className="flex flex-wrap items-center justify-between gap-2 px-2 pb-2 pt-1 sm:px-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1 pb-1.5">
         {lockedSide ? (
           <p className="py-1.5 text-sm font-semibold text-ink">
             {lockedSide === "BUY" ? "Buy foreign currency" : "Sell foreign currency"}
@@ -160,7 +162,7 @@ export function OrderWidget({
                 aria-checked={side === v}
                 onClick={() => setSide(v)}
                 className={cn(
-                  "rounded-full px-4 py-1.5 text-sm font-semibold transition-colors duration-200",
+                  "rounded-full px-3.5 py-1 text-[13px] font-semibold transition-colors duration-200",
                   side === v ? "bg-accent text-accent-ink" : "text-ink-muted hover:text-ink",
                 )}
               >
@@ -174,9 +176,16 @@ export function OrderWidget({
           {currency && rate ? (
             <>
               1 {currency} = <span className="font-semibold text-ink">{formatRateInr(rate)}</span>
-              <span className="hidden sm:inline">
-                · {side === "BUY" ? "today's selling rate" : "today's buy-back rate"}
-              </span>
+              {approxInr !== null ? (
+                <span>
+                  · {amount} {currency} ≈{" "}
+                  <span className="font-semibold text-ink">{formatInr(approxInr, 0)}</span>
+                </span>
+              ) : (
+                <span className="hidden sm:inline">
+                  · {side === "BUY" ? "today's selling rate" : "today's buy-back rate"}
+                </span>
+              )}
             </>
           ) : (
             "Live rates, updated daily"
@@ -184,10 +193,10 @@ export function OrderWidget({
         </p>
       </div>
 
-      <div className="flex flex-col gap-2 lg:flex-row lg:items-stretch">
+      <div className="flex flex-col gap-1.5 lg:flex-row lg:items-stretch">
         <div
           className={cn(
-            "grid flex-1 overflow-hidden rounded-2xl border border-line bg-surface",
+            "grid flex-1 overflow-hidden rounded-2xl border border-line bg-bg/60",
             "sm:grid-cols-2",
             "lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,1fr)]",
           )}
@@ -249,11 +258,6 @@ export function OrderWidget({
             label="Forex amount"
             error={errors.amount}
             className="border-b border-line sm:border-b-0 sm:border-r"
-            hint={
-              <span className="num" aria-live="polite">
-                {approxInr !== null ? `≈ ${formatInr(approxInr, 0)}` : "Enter amount to see INR"}
-              </span>
-            }
           >
             {({ id, describedBy, invalid }) => (
               <div className="flex items-center gap-2">
@@ -313,25 +317,12 @@ export function OrderWidget({
           Proceed <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </Button>
       </div>
-
-      <ul className="flex flex-wrap items-center gap-x-5 gap-y-1 px-3 pb-1 pt-2.5 text-xs text-ink-muted">
-        {[
-          "RBI-authorised money changer",
-          "GST & fees shown upfront",
-          "Doorstep delivery or store pickup",
-        ].map((t) => (
-          <li key={t} className="flex items-center gap-1.5">
-            <ShieldCheck className="h-3.5 w-3.5 text-accent" aria-hidden="true" />
-            {t}
-          </li>
-        ))}
-      </ul>
     </form>
   );
 }
 
 const bareControl =
-  "h-7 w-full bg-transparent text-[15px] font-medium text-ink outline-none placeholder:font-normal placeholder:text-ink-muted/70";
+  "h-6 w-full bg-transparent text-[15px] font-medium text-ink outline-none focus-ring-none placeholder:font-normal placeholder:text-ink-muted/70";
 const CHEVRON =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235B6474' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")";
 
@@ -343,44 +334,45 @@ const formatRateInr = (n: number) =>
     maximumFractionDigits: n < 1 ? 4 : 2,
   }).format(n);
 
-/** One segment of the field group: small label on top, borderless control below, error under it. */
+/** One segment of the field group: small label (with any error beside it) over a borderless control. */
 function Cell({
   label,
   error,
-  hint,
   className,
   children,
 }: {
   label: string;
   error?: string;
-  hint?: React.ReactNode;
   className?: string;
   children: (ids: { id: string; describedBy?: string; invalid: boolean }) => React.ReactNode;
 }) {
   const id = useId();
-  const msgId = `${id}-msg`;
+  const errId = `${id}-err`;
   return (
     <div
       className={cn(
-        "relative flex min-w-0 flex-col justify-center gap-1 px-4 py-3 transition-colors focus-within:bg-accent-soft/40 hover:bg-bg/70",
+        "relative flex min-w-0 flex-col justify-center gap-0.5 px-4 py-2 transition-colors hover:bg-surface focus-within:bg-surface focus-within:ring-2 focus-within:ring-inset focus-within:ring-accent/50",
         error && "bg-danger/[0.04]",
         className,
       )}
     >
-      <label
-        htmlFor={id}
-        className="text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-muted"
-      >
-        {label}
-      </label>
-      {children({ id, describedBy: hint || error ? msgId : undefined, invalid: !!error })}
-      <p
-        id={msgId}
-        aria-live="polite"
-        className={cn("min-h-4 text-[11px] leading-4", error ? "text-danger" : "text-ink-muted")}
-      >
-        {error ?? hint ?? ""}
-      </p>
+      <div className="flex items-baseline justify-between gap-2">
+        <label
+          htmlFor={id}
+          className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-muted"
+        >
+          {label}
+        </label>
+        <span
+          id={errId}
+          aria-live="polite"
+          className="truncate text-[11px] font-medium text-danger"
+          title={error}
+        >
+          {error ?? ""}
+        </span>
+      </div>
+      {children({ id, describedBy: error ? errId : undefined, invalid: !!error })}
     </div>
   );
 }
