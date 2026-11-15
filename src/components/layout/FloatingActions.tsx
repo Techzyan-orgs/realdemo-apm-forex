@@ -53,9 +53,9 @@ export function FloatingActions() {
         tabIndex={visible ? 0 : -1}
         onClick={() => openCallback()}
         aria-label="Request a Callback"
-        className="group flex flex-col items-center gap-2 rounded-l-2xl border border-r-0 border-line bg-surface px-2.5 py-3 text-ink shadow-[0_10px_30px_-14px_rgba(14,23,38,0.4)] transition-[padding,color,border-color] duration-200 hover:border-accent/40 hover:pr-3.5 hover:text-accent sm:py-4"
+        className="group flex flex-col items-center gap-2 rounded-l-2xl border-[1.5px] border-r-0 border-accent bg-surface px-2.5 py-3 text-accent shadow-[0_10px_30px_-14px_rgba(14,23,38,0.4)] transition-[padding,background-color] duration-200 hover:bg-accent-soft hover:pr-3.5 sm:py-4"
       >
-        <PhoneCall className="h-5 w-5 text-accent" aria-hidden="true" />
+        <PhoneCall className="h-5 w-5 rotate-90" aria-hidden="true" />
         <span className="hidden text-[13px] font-semibold tracking-wide sm:block" style={VERTICAL}>
           Request a Callback
         </span>
@@ -68,7 +68,7 @@ export function FloatingActions() {
         aria-label="Let's Chat on WhatsApp"
         className="flex flex-col items-center gap-2 rounded-l-2xl bg-whatsapp px-2.5 py-3 text-[#063b1d] shadow-[0_10px_30px_-14px_rgba(14,23,38,0.4)] transition-[padding,filter] duration-200 hover:pr-3.5 hover:brightness-95 sm:py-4"
       >
-        <WhatsAppIcon className="h-5 w-5" />
+        <WhatsAppIcon className="h-5 w-5 rotate-90" />
         <span className="hidden text-[13px] font-semibold tracking-wide sm:block" style={VERTICAL}>
           Let&apos;s Chat
         </span>
