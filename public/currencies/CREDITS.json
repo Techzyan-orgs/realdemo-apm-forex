@@ -16,16 +16,18 @@
     "licence": "CC0"
   },
   "GBP": {
-    "type": "designed-tile",
+    "type": "stock-photo",
     "file": "/currencies/GBP.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "source": "https://unsplash.com/photos/64iJ1Q1TwEM",
+    "author": "see source page",
+    "licence": "Unsplash License"
   },
   "AED": {
-    "type": "designed-tile",
+    "type": "stock-photo",
     "file": "/currencies/AED.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "source": "https://pixabay.com/photos/dubai-uae-sharjah-abu-dhabi-pay-5358195/",
+    "author": "see source page",
+    "licence": "Pixabay Content License"
   },
   "SGD": {
     "type": "photo",
@@ -36,22 +38,25 @@
     "licence": "CC0"
   },
   "THB": {
-    "type": "designed-tile",
+    "type": "stock-photo",
     "file": "/currencies/THB.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "source": "https://www.pexels.com/photo/12999589/",
+    "author": "see source page",
+    "licence": "Pexels License"
   },
   "AUD": {
-    "type": "designed-tile",
+    "type": "stock-photo",
     "file": "/currencies/AUD.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "source": "https://unsplash.com/photos/uXHIdfSKPiw",
+    "author": "see source page",
+    "licence": "Unsplash License"
   },
   "CAD": {
-    "type": "designed-tile",
+    "type": "stock-photo",
     "file": "/currencies/CAD.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "source": "https://unsplash.com/photos/YTnMLbvgrcA",
+    "author": "see source page",
+    "licence": "Unsplash License"
   },
   "CHF": {
     "type": "photo",
@@ -70,40 +75,47 @@
     "licence": "CC BY 4.0"
   },
   "SAR": {
-    "type": "designed-tile",
+    "type": "stock-photo",
     "file": "/currencies/SAR.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "source": "https://pixabay.com/photos/currency-saudi-arabia-adult-arabia-4008635/",
+    "author": "see source page",
+    "licence": "Pixabay Content License"
   },
   "MYR": {
-    "type": "designed-tile",
+    "type": "stock-photo",
     "file": "/currencies/MYR.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "source": "https://www.pexels.com/photo/6927369/",
+    "author": "see source page",
+    "licence": "Pexels License"
   },
   "HKD": {
-    "type": "designed-tile",
+    "type": "stock-photo",
     "file": "/currencies/HKD.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "source": "https://www.pexels.com/photo/35886104/",
+    "author": "see source page",
+    "licence": "Pexels License"
   },
   "NZD": {
-    "type": "designed-tile",
+    "type": "stock-photo",
     "file": "/currencies/NZD.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "source": "https://www.flickr.com/photos/35803445@N07/8550480618",
+    "author": "uphillblok",
+    "licence": "CC BY-SA 2.0"
   },
   "CNY": {
-    "type": "designed-tile",
+    "type": "stock-photo",
     "file": "/currencies/CNY.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "source": "https://unsplash.com/photos/mt3vM3rRORo",
+    "author": "see source page",
+    "licence": "Unsplash License"
   },
   "QAR": {
-    "type": "designed-tile",
+    "type": "stock-photo",
     "file": "/currencies/QAR.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "source": "https://www.flickr.com/photos/30438072@N07/52646506818",
+    "author": "Vintage Printery",
+    "licence": "CC BY-NC-SA 2.0",
+    "note": "NonCommercial licence - replace before commercial use"
   },
   "OMR": {
     "type": "photo",
@@ -114,28 +126,33 @@
     "licence": "CC0"
   },
   "KWD": {
-    "type": "designed-tile",
+    "type": "stock-photo",
     "file": "/currencies/KWD.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "source": "https://www.flickr.com/photos/68868401@N00/145754976",
+    "author": "radiant guy",
+    "licence": "CC BY-SA 2.0",
+    "note": "previous series"
   },
   "BHD": {
-    "type": "designed-tile",
+    "type": "stock-photo",
     "file": "/currencies/BHD.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "source": "https://www.flickr.com/photos/56041749@N02/18899897879",
+    "author": "mrsdkrebs",
+    "licence": "CC BY 2.0"
   },
   "ZAR": {
-    "type": "designed-tile",
+    "type": "stock-photo",
     "file": "/currencies/ZAR.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "source": "https://www.pexels.com/photo/15049135/",
+    "author": "see source page",
+    "licence": "Pexels License"
   },
   "KRW": {
-    "type": "designed-tile",
+    "type": "stock-photo",
     "file": "/currencies/KRW.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "source": "https://unsplash.com/photos/TFIXbQAv6ag",
+    "author": "see source page",
+    "licence": "Unsplash License"
   },
   "IDR": {
     "type": "photo",
@@ -146,16 +163,18 @@
     "licence": "Public domain"
   },
   "VND": {
-    "type": "designed-tile",
+    "type": "stock-photo",
     "file": "/currencies/VND.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "source": "https://www.pexels.com/photo/34944540/",
+    "author": "see source page",
+    "licence": "Pexels License"
   },
   "LKR": {
-    "type": "designed-tile",
+    "type": "stock-photo",
     "file": "/currencies/LKR.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "source": "https://www.flickr.com/photos/186773210@N06/52305053481",
+    "author": "eric2b01.ec",
+    "licence": "CC BY 2.0"
   },
   "TRY": {
     "type": "photo",
@@ -166,22 +185,26 @@
     "licence": "Public domain"
   },
   "SEK": {
-    "type": "designed-tile",
+    "type": "stock-photo",
     "file": "/currencies/SEK.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "source": "https://www.flickr.com/photos/14829735@N00/52289790820",
+    "author": "dullhunk",
+    "licence": "CC BY 2.0"
   },
   "DKK": {
-    "type": "designed-tile",
+    "type": "stock-photo",
     "file": "/currencies/DKK.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "source": "https://pixabay.com/photos/danish-currency-danish-crones-1139103/",
+    "author": "see source page",
+    "licence": "Pixabay Content License"
   },
   "NOK": {
-    "type": "designed-tile",
+    "type": "stock-photo",
     "file": "/currencies/NOK.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "source": "https://www.flickr.com/photos/14966804@N03/3934199812",
+    "author": "dionhinchcliffe",
+    "licence": "CC BY-SA 2.0",
+    "note": "previous series"
   },
   "RUB": {
     "type": "photo",
@@ -192,9 +215,10 @@
     "licence": "Public domain"
   },
   "EGP": {
-    "type": "designed-tile",
+    "type": "stock-photo",
     "file": "/currencies/EGP.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "source": "https://pixabay.com/photos/money-egyptian-pound-note-fifty-4817524/",
+    "author": "see source page",
+    "licence": "Pixabay Content License"
   }
 }

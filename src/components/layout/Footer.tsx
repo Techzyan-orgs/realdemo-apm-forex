@@ -96,6 +96,11 @@ export function Footer() {
                 Grievance Redressal
               </Link>
             </li>
+            <li>
+              <Link href="/credits" className={linkCls}>
+                Image credits
+              </Link>
+            </li>
           </ul>
           <p className="mt-6 text-sm text-ink-muted">
             <span className="font-medium text-ink">{SITE.grievanceOfficer}</span>
