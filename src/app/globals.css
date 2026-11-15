@@ -42,16 +42,28 @@
 }
 
 @keyframes marquee-rtl {
-  from { transform: translateX(0); }
-  to { transform: translateX(-50%); }
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
 }
 @keyframes marquee-ltr {
-  from { transform: translateX(-50%); }
-  to { transform: translateX(0); }
+  from {
+    transform: translateX(-50%);
+  }
+  to {
+    transform: translateX(0);
+  }
 }
 @keyframes row-highlight {
-  from { background-color: var(--accent-soft); }
-  to { background-color: transparent; }
+  from {
+    background-color: var(--accent-soft);
+  }
+  to {
+    background-color: transparent;
+  }
 }
 
 html {
@@ -74,10 +86,18 @@ body {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+/* opt-out for controls whose container draws the focus ring (e.g. hero widget cells) */
+.focus-ring-none:focus-visible {
+  outline: none;
+}
 
 @media (prefers-reduced-motion: reduce) {
-  html { scroll-behavior: auto; }
-  *, *::before, *::after {
+  html {
+    scroll-behavior: auto;
+  }
+  *,
+  *::before,
+  *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

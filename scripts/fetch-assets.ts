@@ -23,7 +23,10 @@ const PUBLIC = path.resolve(process.cwd(), "public");
 const FORCE = process.argv.includes("--force");
 const ONLY = process.argv.find((a) => a.startsWith("--only="))?.split("=")[1];
 /** --codes=CAD,CNY limits the currency step; --tiles-only skips Commons (offline / rejected images) */
-const CODES = process.argv.find((a) => a.startsWith("--codes="))?.split("=")[1]?.split(",");
+const CODES = process.argv
+  .find((a) => a.startsWith("--codes="))
+  ?.split("=")[1]
+  ?.split(",");
 const TILES_ONLY = process.argv.includes("--tiles-only");
 const UA = "apm-forex-asset-fetcher/1.0 (setup script)";
 
@@ -32,7 +35,10 @@ const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 /** GET with polite retry/backoff on 429/5xx (Wikimedia rate limits anonymous API clients). */
 async function get(url: string, timeoutMs = 20000, attempts = 3): Promise<Buffer> {
   for (let i = 0; ; i++) {
-    const res = await fetch(url, { headers: { "User-Agent": UA }, signal: AbortSignal.timeout(timeoutMs) });
+    const res = await fetch(url, {
+      headers: { "User-Agent": UA },
+      signal: AbortSignal.timeout(timeoutMs),
+    });
     if (res.ok) return Buffer.from(await res.arrayBuffer());
     if ((res.status === 429 || res.status >= 500) && i < attempts - 1) {
       const retryAfter = Number(res.headers.get("retry-after")) || 0;
@@ -45,14 +51,23 @@ async function get(url: string, timeoutMs = 20000, attempts = 3): Promise<Buffer
 async function getJson<T>(url: string): Promise<T> {
   return JSON.parse((await get(url)).toString("utf8")) as T;
 }
-const esc = (s: string) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+const esc = (s: string) =>
+  s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
 /* ------------------------------------------------------------------ flags */
 
 async function fetchFlags() {
   const dir = path.join(PUBLIC, "flags");
   await mkdir(dir, { recursive: true });
-  const codes = [...new Set([...COUNTRIES.map((c) => c.iso2.toLowerCase()), "eu", "np", "bt", ...CURRENCY_META.map((c) => c.flag.toLowerCase())])];
+  const codes = [
+    ...new Set([
+      ...COUNTRIES.map((c) => c.iso2.toLowerCase()),
+      "eu",
+      "np",
+      "bt",
+      ...CURRENCY_META.map((c) => c.flag.toLowerCase()),
+    ]),
+  ];
   let ok = 0;
   let fallback = 0;
   const queue = [...codes];
@@ -136,19 +151,42 @@ async function fetchBanners() {
     const source = `https://unsplash.com/photos/${b.id}`;
     const url = `https://images.unsplash.com/photo-${b.id}?w=2400&q=85&fm=jpg`;
     if (existsSync(file) && !FORCE) {
-      credits.push({ file: `/banners/${b.file}`, theme: b.theme, source, image_url: url, author: "Unsplash contributor (see source page)", licence: "Unsplash License (https://unsplash.com/license)" });
+      credits.push({
+        file: `/banners/${b.file}`,
+        theme: b.theme,
+        source,
+        image_url: url,
+        author: "Unsplash contributor (see source page)",
+        licence: "Unsplash License (https://unsplash.com/license)",
+      });
       continue;
     }
     try {
       const raw = await get(url, 40000);
       // centre-crop to exactly 16:9, 1920x1080. Headline text is rendered as HTML, never baked in.
-      const out = await sharp(raw).resize(1920, 1080, { fit: "cover", position: "centre" }).webp({ quality: 74 }).toBuffer();
+      const out = await sharp(raw)
+        .resize(1920, 1080, { fit: "cover", position: "centre" })
+        .webp({ quality: 74 })
+        .toBuffer();
       await writeFile(file, out);
-      credits.push({ file: `/banners/${b.file}`, theme: b.theme, source, image_url: url, author: "Unsplash contributor (see source page)", licence: "Unsplash License (https://unsplash.com/license)" });
+      credits.push({
+        file: `/banners/${b.file}`,
+        theme: b.theme,
+        source,
+        image_url: url,
+        author: "Unsplash contributor (see source page)",
+        licence: "Unsplash License (https://unsplash.com/license)",
+      });
       console.log(`banner ${b.file}: downloaded (${Math.round(out.length / 1024)} KB)`);
     } catch (e) {
       await writeFile(file, await bannerFallback(i, b.theme));
-      credits.push({ file: `/banners/${b.file}`, theme: b.theme, source: "generated", author: "APM Forex", licence: "Original artwork" });
+      credits.push({
+        file: `/banners/${b.file}`,
+        theme: b.theme,
+        source: "generated",
+        author: "APM Forex",
+        licence: "Original artwork",
+      });
       console.warn(`banner ${b.file}: fallback (${(e as Error).message})`);
     }
   }
@@ -157,7 +195,6 @@ async function fetchBanners() {
 
 /* ------------------------------------------------------------- currencies */
 
-type CommonsSearch = { query?: { search?: { title: string }[] } };
 type CommonsInfo = {
   query?: {
     pages?: Record<
@@ -180,75 +217,251 @@ type CommonsInfo = {
 };
 
 /**
- * Commons search terms per currency. Commons file titles vary a lot, so specific
- * phrases beat the generic "{name} banknote". Pinned file titles can be added here
- * if a search picks something unsuitable.
+ * Hand-picked Commons files of the CURRENT banknote series (checked by eye: right currency,
+ * current issue, clean flat scan, PD/CC licence). Pinned titles are still licence-checked at
+ * download time. Currencies without a pin fall back to search, then to a designed tile.
+ * Many central banks (e.g. Bank of England, RBA, Bank of Canada) keep copyright in their notes,
+ * so no freely licensed scan exists on Commons for those - they stay as designed tiles until a
+ * licensed image is supplied (drop it in public/currencies/{CODE}.webp and record it in CREDITS.json).
  */
-const SEARCH_OVERRIDES: Record<string, string[]> = {};
+/** pins whose notes sit on plain white (not a rectangle): white is knocked out, no card shadow */
+const CUTOUT = new Set(["EUR"]);
 
-const strip = (html: string) => html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
-const ACCEPTED_LICENCE = /^(public domain|pd|cc0|cc[ -]by(-sa)?([ -]\d(\.\d)?)?|cc by(-sa)? \d\.\d)/i;
+const PINNED_FILES: Record<string, string> = {
+  USD: "File:Obverse of the series 2009 $100 Federal Reserve Note.jpg",
+  CHF: "File:CHF 100 9 front.jpg",
+  JPY: "File:New 10000 yen banknote obverse.png",
+  IDR: "File:TE-2022-100000-depan.jpg",
+  OMR: "File:Omani Rial 2025 Polymer (Obverse).jpg",
+  SGD: "File:Tampak depan 2 dolar potret kertas.jpg",
+  EUR: "File:Euro banknotes, Europa series.png", // fan of notes on white: see CUTOUT
+  RUB: "File:Banknote 5000 rubles 2010 front.jpg",
+  TRY: "File:10 Türk Lirası front.jpg",
+};
 
-/** distinctive words of the currency name (e.g. "Thai Baht" -> ["thai","baht"]) plus the ISO code */
-const nameTokens = (c: CurrencyMeta) => [
-  c.code.toLowerCase(),
-  ...c.name
-    .toLowerCase()
-    .split(/\s+/)
-    .filter((w) => w.length > 2 && !["dollar", "pound", "rupee"].includes(w)),
-];
+const strip = (html: string) =>
+  html
+    .replace(/<[^>]+>/g, "")
+    .replace(/\s+/g, " ")
+    .trim();
+const ACCEPTED_LICENCE =
+  /^(public domain|pd|cc0|cc[ -]by(-sa)?([ -]\d(\.\d)?)?|cc by(-sa)? \d\.\d)/i;
 
-async function findCommonsImage(c: CurrencyMeta) {
-  const queries = SEARCH_OVERRIDES[c.code] ?? [`${c.name} banknote`, `${c.code} banknote`, `${c.name} note`];
-  for (const q of queries) {
-    const s = await getJson<CommonsSearch>(
-      `https://commons.wikimedia.org/w/api.php?action=query&list=search&srnamespace=6&srlimit=10&format=json&srsearch=${encodeURIComponent(q)}`,
-    );
-    const titles = (s.query?.search ?? [])
-      .map((r) => r.title)
-      .filter(
-        (t) =>
-          /\.(jpe?g|png|webp)$/i.test(t) &&
-          // must look like a banknote of *this* currency (search ranking alone picks unrelated photos)
-          /banknote|bank note|\bnote\b|\bbill\b|obverse/i.test(t) &&
-          nameTokens(c).some((tok) => t.toLowerCase().includes(tok)) &&
-          // skip non-banknote and historical/obsolete issues (e.g. "Confederate 100 Dollars" for USD)
-          !/coin|\bmap\b|logo|chart|graph|stamp|confederate|obsolete|counterfeit|fake|\bold\b|first|original series|proof|museum|hell|joss|mengjiang|\b1[0-9]\d\d\b/i.test(t),
-      );
-    if (!titles.length) continue;
-    const info = await getJson<CommonsInfo>(
-      `https://commons.wikimedia.org/w/api.php?action=query&prop=imageinfo&iiprop=url|size|mime|extmetadata&iiurlwidth=900&format=json&titles=${encodeURIComponent(titles.join("|"))}`,
-    );
-    const pages = Object.values(info.query?.pages ?? {});
-    // keep search ranking order
-    pages.sort((a, b) => titles.indexOf(a.title) - titles.indexOf(b.title));
-    for (const p of pages) {
-      const ii = p.imageinfo?.[0];
-      if (!ii?.url) continue;
-      if ((ii.size ?? 0) > 8 * 1024 * 1024) continue; // keep downloads small
-      const licence = strip(ii.extmetadata?.LicenseShortName?.value ?? "");
-      if (!ACCEPTED_LICENCE.test(licence)) continue;
-      const ratio = ii.width / ii.height;
-      if (ratio < 1.2 || ratio > 3.2 || ii.width < 500) continue; // landscape note-like images only
-      return {
-        title: p.title,
-        // thumbnails live on thumb.wikimedia.org, which may be blocked; prefer it, fall back to the original
-        thumb: ii.thumburl,
-        original: ii.url,
-        source: ii.descriptionurl,
-        licence,
-        author: strip(ii.extmetadata?.Artist?.value ?? "Unknown").slice(0, 160),
-      };
-    }
+async function commonsInfo(titles: string[]) {
+  return getJson<CommonsInfo>(
+    `https://commons.wikimedia.org/w/api.php?action=query&prop=imageinfo&iiprop=url|size|mime|extmetadata&iiurlwidth=900&format=json&titles=${encodeURIComponent(titles.join("|"))}`,
+  );
+}
+
+async function findPinnedImage(title: string) {
+  const p = Object.values((await commonsInfo([title])).query?.pages ?? {})[0];
+  const ii = p?.imageinfo?.[0];
+  if (!ii?.url) throw new Error(`pinned file not found: ${title}`);
+  const licence = strip(ii.extmetadata?.LicenseShortName?.value ?? "");
+  if (!ACCEPTED_LICENCE.test(licence))
+    throw new Error(`pinned file has an unaccepted licence (${licence}): ${title}`);
+  return {
+    title: p.title,
+    thumb: ii.thumburl,
+    original: ii.url,
+    source: ii.descriptionurl,
+    licence,
+    author: strip(ii.extmetadata?.Artist?.value ?? "Unknown").slice(0, 160),
+  };
+}
+
+/**
+ * Low-res presentation (600x400, never a full flat high-res reproduction): the whole note is
+ * shown, centred on a soft card. Portrait scans (e.g. the Swiss 9th series) are turned landscape.
+ */
+async function banknoteCard(raw: Buffer, cutout = false) {
+  // honour EXIF orientation and trim uniform (e.g. white) margins around the note
+  let img = sharp(
+    await sharp(raw)
+      .rotate()
+      .trim({ threshold: 12 })
+      .toBuffer()
+      .catch(() => sharp(raw).rotate().toBuffer()),
+  );
+  const meta = await img.metadata();
+  const w = meta.autoOrient?.width ?? meta.width ?? 1;
+  const h = meta.autoOrient?.height ?? meta.height ?? 1;
+  if (h > w) img = sharp(await img.toBuffer()).rotate(-90);
+  let note = await img
+    .resize(540, 330, { fit: "inside", withoutEnlargement: false })
+    .png()
+    .toBuffer();
+  if (cutout) {
+    // near-white background -> transparent
+    const { data, info } = await sharp(note)
+      .ensureAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    for (let i = 0; i < data.length; i += 4)
+      if (data[i] > 243 && data[i + 1] > 243 && data[i + 2] > 243) data[i + 3] = 0;
+    note = await sharp(data, { raw: info }).png().toBuffer();
   }
-  return null;
+  const { width = 540, height = 330 } = await sharp(note).metadata();
+  const shadow = Buffer.from(
+    `<svg width="600" height="400"><defs><filter id="b"><feGaussianBlur stdDeviation="9"/></filter></defs><rect x="${(600 - width) / 2 + 2}" y="${(400 - height) / 2 + 10}" width="${width - 4}" height="${height}" rx="6" fill="#0E1726" fill-opacity="0.16" filter="url(#b)"/></svg>`,
+  );
+  const bg = Buffer.from(
+    `<svg width="600" height="400"><defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#F7F6F2"/><stop offset="1" stop-color="#ECEAE3"/></linearGradient></defs><rect width="600" height="400" fill="url(#g)"/></svg>`,
+  );
+  return sharp(bg)
+    .composite([
+      ...(cutout ? [] : [{ input: shadow, left: 0, top: 0 }]),
+      { input: note, left: Math.round((600 - width) / 2), top: Math.round((400 - height) / 2) },
+    ])
+    .webp({ quality: 78 })
+    .toBuffer();
+}
+
+/**
+ * Free stock photos for currencies with no freely licensed flat scan (their central banks hold
+ * copyright in the design). Hand-picked from Unsplash / Pexels / Pixabay (their free licences)
+ * and Openverse (Flickr, Creative Commons). Rendered as a 3:2 cover crop. Flags:
+ *  - note: "previous series" when no free photo of the current series exists
+ *  - CC BY-NC licences are NonCommercial: fine for this demo, replace before commercial use.
+ */
+type StockPhoto = {
+  url: string;
+  page: string;
+  licence: string;
+  author?: string;
+  position?: string;
+  /** keep only this fraction of the width from the left (crop out a neighbouring foreign note) */
+  keepLeft?: number;
+  note?: string;
+  normalize?: boolean;
+};
+const U = (photo: string, id: string): Pick<StockPhoto, "url" | "page" | "licence"> => ({
+  url: `https://images.unsplash.com/${photo}?w=1200&q=80`,
+  page: `https://unsplash.com/photos/${id}`,
+  licence: "Unsplash License",
+});
+const P = (id: string): Pick<StockPhoto, "url" | "page" | "licence"> => ({
+  url: `https://images.pexels.com/photos/${id}/pexels-photo-${id}.jpeg?auto=compress&w=1200`,
+  page: `https://www.pexels.com/photo/${id}/`,
+  licence: "Pexels License",
+});
+const X = (cdn: string, slug: string): Pick<StockPhoto, "url" | "page" | "licence"> => ({
+  url: `https://cdn.pixabay.com/photo/${cdn}_1280.jpg`,
+  page: `https://pixabay.com/photos/${slug}/`,
+  licence: "Pixabay Content License",
+});
+const F = (img: string, page: string, author: string, licence: string): StockPhoto => ({
+  url: `https://live.staticflickr.com/${img}`,
+  page,
+  author,
+  licence,
+});
+
+const STOCK_PHOTOS: Record<string, StockPhoto> = {
+  GBP: U("photo-1700047614820-0f32080db6f8", "64iJ1Q1TwEM"),
+  AUD: U("photo-1537849156823-51cf0388f86c", "uXHIdfSKPiw"),
+  CAD: U("photo-1641932969723-c8f0912f4264", "YTnMLbvgrcA"),
+  CNY: U("photo-1554209721-6dbb1575b852", "mt3vM3rRORo"),
+  KRW: U("photo-1643134756961-e2f24abc2919", "TFIXbQAv6ag"),
+  THB: P("12999589"),
+  MYR: P("6927369"),
+  HKD: P("35886104"),
+  ZAR: { ...P("15049135"), keepLeft: 0.6, position: "west" }, // crop to the rand note (photo also shows a peso)
+  VND: P("34944540"),
+  AED: X("2020/07/01/02/32/dubai-5358195", "dubai-uae-sharjah-abu-dhabi-pay-5358195"),
+  SAR: X("2019/02/20/08/03/currency-4008635", "currency-saudi-arabia-adult-arabia-4008635"),
+  DKK: X("2016/01/13/23/25/danish-currency-1139103", "danish-currency-danish-crones-1139103"),
+  EGP: X("2020/02/04/07/53/money-4817524", "money-egyptian-pound-note-fifty-4817524"),
+  BHD: F(
+    "555/18899897879_70c7d0ffd0.jpg",
+    "https://www.flickr.com/photos/56041749@N02/18899897879",
+    "mrsdkrebs",
+    "CC BY 2.0",
+  ),
+  NZD: F(
+    "8098/8550480618_2c7dc8817e_b.jpg",
+    "https://www.flickr.com/photos/35803445@N07/8550480618",
+    "uphillblok",
+    "CC BY-SA 2.0",
+  ),
+  SEK: F(
+    "65535/52289790820_233e13850f_b.jpg",
+    "https://www.flickr.com/photos/14829735@N00/52289790820",
+    "dullhunk",
+    "CC BY 2.0",
+  ),
+  LKR: F(
+    "65535/52305053481_476a152bdf_b.jpg",
+    "https://www.flickr.com/photos/186773210@N06/52305053481",
+    "eric2b01.ec",
+    "CC BY 2.0",
+  ),
+  NOK: {
+    ...F(
+      "2627/3934199812_5c6ef3eefb.jpg",
+      "https://www.flickr.com/photos/14966804@N03/3934199812",
+      "dionhinchcliffe",
+      "CC BY-SA 2.0",
+    ),
+    note: "previous series",
+  },
+  KWD: {
+    ...F(
+      "56/145754976_258183ba2f_b.jpg",
+      "https://www.flickr.com/photos/68868401@N00/145754976",
+      "radiant guy",
+      "CC BY-SA 2.0",
+    ),
+    note: "previous series",
+    normalize: true,
+  },
+  QAR: {
+    ...F(
+      "65535/52646506818_e7abed1e3e.jpg",
+      "https://www.flickr.com/photos/30438072@N07/52646506818",
+      "Vintage Printery",
+      "CC BY-NC-SA 2.0",
+    ),
+    position: "south",
+    note: "NonCommercial licence - replace before commercial use",
+  },
+};
+
+async function stockPhotoCard(raw: Buffer, p: StockPhoto) {
+  let img = sharp(raw).rotate();
+  if (p.keepLeft) {
+    const m = await sharp(raw).rotate().metadata();
+    img = sharp(
+      await img
+        .extract({
+          left: 0,
+          top: 0,
+          width: Math.round((m.width ?? 1) * p.keepLeft),
+          height: m.height ?? 1,
+        })
+        .toBuffer(),
+    );
+  }
+  if (p.normalize) img = img.normalize().modulate({ saturation: 1.15 });
+  return img
+    .resize(600, 400, { fit: "cover", position: p.position ?? "attention" })
+    .webp({ quality: 78 })
+    .toBuffer();
+}
+
+/** Only hand-checked pins become photos: open search kept picking obsolete or foreign notes. */
+async function findCommonsImage(c: CurrencyMeta) {
+  return PINNED_FILES[c.code] ? findPinnedImage(PINNED_FILES[c.code]) : null;
 }
 
 async function currencyTile(c: CurrencyMeta) {
   const flagFile = path.join(PUBLIC, "flags", `${c.flag.toLowerCase()}.svg`);
   let flagHref = "";
   if (existsSync(flagFile)) {
-    const png = await sharp(await readFile(flagFile), { density: 150 }).resize(96, 72, { fit: "cover" }).png().toBuffer();
+    const png = await sharp(await readFile(flagFile), { density: 150 })
+      .resize(96, 72, { fit: "cover" })
+      .png()
+      .toBuffer();
     flagHref = `data:image/png;base64,${png.toString("base64")}`;
   }
   const hue = ([...c.code].reduce((a, ch) => a * 31 + ch.charCodeAt(0), 7) * 47) % 360;
@@ -277,7 +490,9 @@ async function fetchCurrencies() {
   const dir = path.join(PUBLIC, "currencies");
   await mkdir(dir, { recursive: true });
   const creditsFile = path.join(dir, "CREDITS.json");
-  const prev: Record<string, unknown> = existsSync(creditsFile) ? JSON.parse(await readFile(creditsFile, "utf8")) : {};
+  const prev: Record<string, unknown> = existsSync(creditsFile)
+    ? JSON.parse(await readFile(creditsFile, "utf8"))
+    : {};
   const credits: Record<string, unknown> = {};
   // circuit breaker: after 3 rate-limit failures in a row, stop calling Commons this run
   let rateLimited = 0;
@@ -289,27 +504,67 @@ async function fetchCurrencies() {
     }
     const prevEntry = prev[c.code] as { type?: string } | undefined;
     // keep photos; retry designed tiles (e.g. after a rate-limited run) unless --force
-    if (existsSync(file) && !FORCE && !CODES && prevEntry?.type === "photo") {
+    if (
+      existsSync(file) &&
+      !FORCE &&
+      !CODES &&
+      (prevEntry?.type === "photo" || prevEntry?.type === "stock-photo")
+    ) {
       credits[c.code] = prev[c.code];
       continue;
     }
+    const stock = STOCK_PHOTOS[c.code];
+    if (stock && !TILES_ONLY) {
+      try {
+        const raw = await get(stock.url, 30000, 2);
+        await writeFile(file, await stockPhotoCard(raw, stock));
+        credits[c.code] = {
+          type: "stock-photo",
+          file: `/currencies/${c.code}.webp`,
+          source: stock.page,
+          author: stock.author ?? "see source page",
+          licence: stock.licence,
+          ...(stock.note ? { note: stock.note } : {}),
+        };
+        console.log(`currency ${c.code}: stock photo ${stock.page} [${stock.licence}]`);
+        continue;
+      } catch (e) {
+        console.log(
+          `currency ${c.code}: stock photo failed (${(e as Error).message}), falling back`,
+        );
+      }
+    }
     try {
       if (TILES_ONLY) throw new Error("--tiles-only");
-      if (rateLimited >= 3) throw new Error("Commons API rate-limited this run; re-run later to retry");
+      if (rateLimited >= 3)
+        throw new Error("Commons API rate-limited this run; re-run later to retry");
       await sleep(1200); // be polite to the Commons API
       const hit = await findCommonsImage(c);
       rateLimited = 0;
-      if (!hit) throw new Error("no suitably licensed image");
-      const raw = await get(hit.thumb ?? hit.original, 30000, 1).catch(() => get(hit.original, 60000));
-      // low-res, cropped: 600x400 (3:2), never a full flat high-res reproduction
-      const out = await sharp(raw).resize(600, 400, { fit: "cover", position: "centre" }).webp({ quality: 72 }).toBuffer();
+      if (!hit) throw new Error("no hand-checked, freely licensed current-series image");
+      const raw = await get(hit.thumb ?? hit.original, 30000, 1).catch(() =>
+        get(hit.original, 60000),
+      );
+      const out = await banknoteCard(raw, CUTOUT.has(c.code));
       await writeFile(file, out);
-      credits[c.code] = { type: "photo", file: `/currencies/${c.code}.webp`, title: hit.title, source: hit.source, author: hit.author, licence: hit.licence };
+      credits[c.code] = {
+        type: "photo",
+        file: `/currencies/${c.code}.webp`,
+        title: hit.title,
+        source: hit.source,
+        author: hit.author,
+        licence: hit.licence,
+      };
       console.log(`currency ${c.code}: ${hit.title} [${hit.licence}]`);
     } catch (e) {
       if (/HTTP 429/.test((e as Error).message)) rateLimited++;
       await writeFile(file, await currencyTile(c));
-      credits[c.code] = { type: "designed-tile", file: `/currencies/${c.code}.webp`, source: "generated", licence: "Original artwork; flag from flagcdn.com (public domain)" };
+      credits[c.code] = {
+        type: "designed-tile",
+        file: `/currencies/${c.code}.webp`,
+        source: "generated",
+        licence: "Original artwork; flag from flagcdn.com (public domain)",
+      };
       console.log(`currency ${c.code}: designed tile (${(e as Error).message})`);
     }
   }

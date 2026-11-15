@@ -8,7 +8,7 @@ import { whatsappUrl } from "@/lib/site";
 import { useUi } from "@/stores/ui";
 
 /**
- * Fixed right-edge pills: Request a Callback + Let's Chat (WhatsApp).
+ * Vertical tabs docked to the right edge: Request a Callback + Let's Chat (WhatsApp).
  * Hidden while the page hero ([data-hero]) is in view and while any modal is open.
  */
 export function FloatingActions() {
@@ -24,7 +24,10 @@ export function FloatingActions() {
       const raf = requestAnimationFrame(() => setState({ path: pathname, past: true }));
       return () => cancelAnimationFrame(raf);
     }
-    const io = new IntersectionObserver(([entry]) => setState({ path: pathname, past: !entry.isIntersecting }), { threshold: 0 });
+    const io = new IntersectionObserver(
+      ([entry]) => setState({ path: pathname, past: !entry.isIntersecting }),
+      { threshold: 0 },
+    );
     io.observe(hero);
     return () => io.disconnect();
   }, [pathname]);
@@ -38,19 +41,24 @@ export function FloatingActions() {
       data-visible={visible ? "true" : "false"}
       aria-hidden={!visible}
       className={cn(
-        "fixed right-3 top-1/2 z-30 flex -translate-y-1/2 flex-col items-end gap-2 transition-all duration-300 sm:right-4",
-        visible ? "visible translate-x-0 opacity-100" : "invisible pointer-events-none translate-x-6 opacity-0",
+        // vertical tabs docked to the right edge of the viewport
+        "fixed right-0 top-1/2 z-30 flex -translate-y-1/2 flex-col items-end gap-2 transition-all duration-300",
+        visible
+          ? "visible translate-x-0 opacity-100"
+          : "invisible pointer-events-none translate-x-full opacity-0",
       )}
     >
       <button
         type="button"
         tabIndex={visible ? 0 : -1}
         onClick={() => openCallback()}
-        className="group inline-flex h-12 items-center gap-2 rounded-full border border-line bg-surface px-3.5 text-sm font-medium text-ink shadow-[0_8px_24px_-12px_rgba(14,23,38,0.35)] transition-colors hover:border-accent/40 hover:text-accent"
         aria-label="Request a Callback"
+        className="group flex flex-col items-center gap-2 rounded-l-2xl border-[1.5px] border-r-0 border-accent bg-surface px-2.5 py-3 text-accent shadow-[0_10px_30px_-14px_rgba(14,23,38,0.4)] transition-[padding,background-color] duration-200 hover:bg-accent-soft hover:pr-3.5 sm:py-4"
       >
-        <PhoneCall className="h-5 w-5 text-accent" aria-hidden="true" />
-        <span className="hidden sm:inline">Request a Callback</span>
+        <PhoneCall className="h-5 w-5 rotate-90" aria-hidden="true" />
+        <span className="hidden text-[13px] font-semibold tracking-wide sm:block" style={VERTICAL}>
+          Request a Callback
+        </span>
       </button>
       <a
         href={whatsappUrl()}
@@ -58,11 +66,16 @@ export function FloatingActions() {
         rel="noopener noreferrer"
         tabIndex={visible ? 0 : -1}
         aria-label="Let's Chat on WhatsApp"
-        className="inline-flex h-12 items-center gap-2 rounded-full bg-whatsapp px-3.5 text-sm font-semibold text-[#063b1d] shadow-[0_8px_24px_-12px_rgba(14,23,38,0.35)] transition hover:brightness-95"
+        className="flex flex-col items-center gap-2 rounded-l-2xl bg-whatsapp px-2.5 py-3 text-[#063b1d] shadow-[0_10px_30px_-14px_rgba(14,23,38,0.4)] transition-[padding,filter] duration-200 hover:pr-3.5 hover:brightness-95 sm:py-4"
       >
-        <WhatsAppIcon className="h-5 w-5" />
-        <span className="hidden sm:inline">Let&apos;s Chat</span>
+        <WhatsAppIcon className="h-5 w-5 rotate-90" />
+        <span className="hidden text-[13px] font-semibold tracking-wide sm:block" style={VERTICAL}>
+          Let&apos;s Chat
+        </span>
       </a>
     </div>
   );
 }
+
+/** label reads top-to-bottom along the edge, letters facing right */
+const VERTICAL: React.CSSProperties = { writingMode: "vertical-rl" };
