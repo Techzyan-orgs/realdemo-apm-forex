@@ -12,9 +12,9 @@
     "test:e2e": "playwright test --trace off",
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
-    "db:seed": "NODE_USE_ENV_PROXY=1 tsx prisma/seed.ts",
-    "assets:fetch": "NODE_USE_ENV_PROXY=1 tsx scripts/fetch-assets.ts",
-    "reviews:sync": "NODE_USE_ENV_PROXY=1 tsx scripts/sync-reviews.ts",
+    "db:seed": "NODE_USE_ENV_PROXY=1 tsx --env-file-if-exists=.env prisma/seed.ts",
+    "assets:fetch": "NODE_USE_ENV_PROXY=1 tsx --env-file-if-exists=.env scripts/fetch-assets.ts",
+    "reviews:sync": "NODE_USE_ENV_PROXY=1 tsx --env-file-if-exists=.env scripts/sync-reviews.ts",
     "format": "prettier --write .",
     "postinstall": "prisma generate"
   },
@@ -59,6 +59,6 @@
     "vitest": "^5.1.0"
   },
   "prisma": {
-    "seed": "tsx prisma/seed.ts"
+    "seed": "tsx --env-file-if-exists=.env prisma/seed.ts"
   }
 }
