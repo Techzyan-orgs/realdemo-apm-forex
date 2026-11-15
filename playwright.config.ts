@@ -24,6 +24,7 @@ export default defineConfig({
   workers: 1,
   retries: 0,
   reporter: [["list"]],
+  globalSetup: "./tests/e2e/warmup.ts",
   use: { baseURL: `http://localhost:${PORT}`, trace: "off", ...devices["Desktop Chrome"] },
   webServer: {
     command: `npx tsx tests/e2e/reset-db.ts && npx next dev -p ${PORT}`,

@@ -17,10 +17,23 @@ export const day = (n: number) => {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 };
 
+/** `next dev` may full-reload while compiling a route the first time: warm it, then retry the navigation. */
+export async function gotoHarness(page: Page) {
+  await page.request.get(HARNESS);
+  for (let attempt = 0; ; attempt++) {
+    try {
+      await page.goto(HARNESS);
+      await page.getByRole("button", { name: "Reset draft" }).click({ timeout: 10_000 });
+      return;
+    } catch (e) {
+      if (attempt >= 3) throw e;
+    }
+  }
+}
+
 /** Simulates the hero widget's Proceed (writes the draft and opens the calculator list). */
 export async function heroProceed(page: Page, o: { currency?: string; amount?: string; purpose?: string; mobile?: string; country?: string } = {}) {
-  await page.goto(HARNESS);
-  await page.getByRole("button", { name: "Reset draft" }).click();
+  await gotoHarness(page);
   if (o.country) await page.getByLabel("Country").fill(o.country);
   if (o.currency) await page.getByLabel("Currency").fill(o.currency);
   if (o.amount) await page.getByLabel("Forex Amount").fill(o.amount);

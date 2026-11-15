@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { heroProceed, HARNESS } from "./checkout-helpers";
+import { gotoHarness, heroProceed } from "./checkout-helpers";
 
 test("hero Proceed opens the calculator with the chosen currency as row 1; purpose and mobile are prefilled on details", async ({ page }) => {
   await heroProceed(page, { currency: "AED", amount: "750", purpose: "BUSINESS", mobile: "9123456789", country: "AE" });
@@ -44,9 +44,8 @@ test("Add Another Currency shows Back; second currency shows Total; deleting ret
 });
 
 test("header entry opens the select screen without Back; CAP-1 disables Place Order", async ({ page }) => {
-  await page.goto(HARNESS);
-  await page.getByRole("button", { name: "Reset draft" }).click();
-  await page.getByRole("button", { name: "Currency Converter" }).click();
+  await gotoHarness(page);
+  await page.locator("#main").getByRole("button", { name: "Currency Converter" }).click();
   await expect(page.getByTestId("calculator")).toHaveAttribute("data-screen", "select");
   await expect(page.getByTestId("calc-back")).toHaveCount(0);
   await page.getByTestId("select-USD").click();

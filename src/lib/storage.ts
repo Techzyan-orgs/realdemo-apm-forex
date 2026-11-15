@@ -9,7 +9,7 @@ export interface StorageProvider {
 }
 
 export class LocalDiskProvider implements StorageProvider {
-  constructor(private root = path.resolve(process.cwd(), process.env.STORAGE_DIR ?? "./storage")) {}
+  constructor(private root = path.resolve(/*turbopackIgnore: true*/ process.cwd(), process.env.STORAGE_DIR ?? "./storage")) {}
   private resolve(key: string) {
     if (!/^[a-z0-9/_-]+\.[a-z0-9]+$/i.test(key) || key.includes("..")) throw new Error("bad storage key");
     return path.join(this.root, key);
