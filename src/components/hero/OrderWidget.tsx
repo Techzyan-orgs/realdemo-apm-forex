@@ -1,8 +1,7 @@
 "use client";
-import { ArrowRight } from "lucide-react";
+import { ArrowRight, ShieldCheck } from "lucide-react";
 import { useEffect, useId, useMemo, useState } from "react";
 import { countryOptions, CountryCombobox } from "@/components/hero/CountryCombobox";
-import { Button } from "@/components/ui/Button";
 import { enabledPurposes } from "@/data/purposes";
 import { cn, formatInr } from "@/lib/format";
 import { heroWidgetSchema } from "@/lib/schemas";
@@ -138,11 +137,11 @@ export function OrderWidget({
       }
       data-testid="order-widget"
       className={cn(
-        "rounded-[22px] border border-line/80 bg-surface p-1.5 shadow-[0_30px_80px_-40px_rgba(14,23,38,0.55)]",
+        "rounded-[28px] border border-line/80 bg-surface p-3 shadow-[0_30px_80px_-40px_rgba(14,23,38,0.55)]",
         className,
       )}
     >
-      <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 px-1 pb-1.5">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pb-3">
         {lockedSide ? (
           <p className="py-1.5 text-sm font-semibold text-ink">
             {lockedSide === "BUY" ? "Buy foreign currency" : "Sell foreign currency"}
@@ -152,7 +151,7 @@ export function OrderWidget({
             role="radiogroup"
             aria-label="Transaction"
             data-testid="widget-side"
-            className="inline-flex rounded-full bg-bg p-1 ring-1 ring-line"
+            className="inline-flex rounded-full bg-bg p-1 ring-1 ring-inset ring-line"
           >
             {(["BUY", "SELL"] as const).map((v) => (
               <button
@@ -162,7 +161,7 @@ export function OrderWidget({
                 aria-checked={side === v}
                 onClick={() => setSide(v)}
                 className={cn(
-                  "rounded-full px-3.5 py-1 text-[13px] font-semibold transition-colors duration-200",
+                  "rounded-full px-4 py-1.5 text-[13px] font-semibold leading-none transition-colors duration-200",
                   side === v ? "bg-accent text-accent-ink" : "text-ink-muted hover:text-ink",
                 )}
               >
@@ -193,7 +192,7 @@ export function OrderWidget({
         </p>
       </div>
 
-      <div className="flex flex-col gap-1.5 lg:flex-row lg:items-stretch">
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">
         <div
           className={cn(
             "grid flex-1 overflow-hidden rounded-2xl border border-line bg-bg/60",
@@ -308,18 +307,32 @@ export function OrderWidget({
             )}
           </Cell>
         </div>
-        <Button
+        <button
           type="submit"
-          size="lg"
-          className="h-14 rounded-2xl px-7 text-[15px] lg:h-auto"
+          className="inline-flex h-[52px] items-center justify-center gap-2 rounded-2xl bg-accent px-8 text-[15px] font-semibold text-accent-ink transition-colors hover:bg-[#0c625b] lg:h-auto"
           data-testid="widget-proceed"
         >
           Proceed <ArrowRight className="h-4 w-4" aria-hidden="true" />
-        </Button>
+        </button>
       </div>
+
+      <ul className="flex flex-wrap items-center gap-x-6 gap-y-1.5 pt-3 text-xs text-ink-muted">
+        {TRUST.map((t) => (
+          <li key={t} className="flex items-center gap-1.5">
+            <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-accent" aria-hidden="true" />
+            {t}
+          </li>
+        ))}
+      </ul>
     </form>
   );
 }
+
+const TRUST = [
+  "RBI-authorised money changer",
+  "GST & fees shown upfront",
+  "Doorstep delivery or store pickup",
+];
 
 const bareControl =
   "h-6 w-full bg-transparent text-[15px] font-medium text-ink outline-none focus-ring-none placeholder:font-normal placeholder:text-ink-muted/70";
