@@ -1,5 +1,5 @@
 "use client";
-import { BadgeCheck, CreditCard, FileCheck2, Home, PackageCheck, ShoppingBag, Split, Store, Truck, Wallet } from "lucide-react";
+import { BadgeCheck, Banknote, CreditCard, FileCheck2, PackageCheck, ShoppingBag, Split, Store, Truck, Wallet } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { COMPLIANCE } from "@/config/compliance";
 import { formatInr } from "@/lib/format";
@@ -218,10 +218,27 @@ export function HowItWorks() {
           </div>
         </div>
 
-        <p className="mt-6 flex items-start gap-2 border-t border-line pt-5 text-sm text-ink-muted">
-          <Home className="mt-0.5 h-4 w-4 shrink-0 text-accent" aria-hidden="true" />
-          Cash is accepted at the store only up to {formatInr(COMPLIANCE.pay.cashAcceptanceLimitInr, 0)} per RBI rules.
-        </p>
+        {/* PAY-1: highly visible cash-limit notice (amount from config, never hard-coded) */}
+        <div
+          role="note"
+          data-testid="cash-limit-callout"
+          className="mt-8 flex flex-col gap-4 rounded-2xl border border-warn/30 bg-warn-soft p-5 sm:flex-row sm:items-center sm:gap-5 sm:p-6"
+        >
+          <span className="grid h-14 w-14 shrink-0 place-items-center rounded-2xl bg-warn text-white">
+            <Banknote className="h-7 w-7" strokeWidth={1.75} aria-hidden="true" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="text-xs font-semibold uppercase tracking-wider text-warn">RBI rule · cash payments</p>
+            <p className="mt-1 font-display text-xl font-bold leading-snug text-ink sm:text-2xl">
+              Cash accepted only up to{" "}
+              <span className="num whitespace-nowrap text-warn">{formatInr(COMPLIANCE.pay.cashAcceptanceLimitInr, 0)}</span>
+            </p>
+            <p className="mt-1.5 text-sm leading-6 text-ink/75">
+              Above this, pay by card, UPI, bank transfer or cheque / DD from your own account. Purchases for the same trip within{" "}
+              {COMPLIANCE.pay.aggregationWindowDays} days are added together.
+            </p>
+          </div>
+        </div>
       </div>
     </section>
   );
