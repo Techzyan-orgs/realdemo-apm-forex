@@ -77,5 +77,5 @@ export function FloatingActions() {
   );
 }
 
-/** label reads bottom-to-top along the edge */
-const VERTICAL: React.CSSProperties = { writingMode: "vertical-rl", transform: "rotate(180deg)" };
+/** label reads top-to-bottom along the edge, letters facing right */
+const VERTICAL: React.CSSProperties = { writingMode: "vertical-rl" };
