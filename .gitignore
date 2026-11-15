@@ -34,3 +34,15 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# apm-forex
+/storage
+/prisma/*.db
+/prisma/*.db-journal
+/test-results
+/playwright-report
+/blob-report
+/.vitest
+/.next-*
+/storage-*
+/.claude/worktrees

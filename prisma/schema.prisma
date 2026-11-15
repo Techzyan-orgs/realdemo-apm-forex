@@ -1,0 +1,314 @@
+// APM Forex - Prisma schema.
+// SQLite for local dev; kept Postgres-compatible: no enums (status fields are strings
+// validated by zod in src/lib/schemas.ts), money as Decimal, JSON as Json.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model Order {
+  id                    String    @id @default(cuid())
+  ref                   String    @unique
+  side                  String // BUY | SELL
+  status                String // see ORDER_STATUSES
+  fulfilment            String // COURIER | STORE_PICKUP
+  purpose               String
+  destinationCountry    String?   @map("destination_country")
+  mobile                String
+  travelDate            DateTime? @map("travel_date")
+  grossInr              Decimal   @map("gross_inr")
+  serviceChargeInr      Decimal   @map("service_charge_inr")
+  gstTaxableValueInr    Decimal   @map("gst_taxable_value_inr")
+  gstInr                Decimal   @map("gst_inr")
+  tcsInr                Decimal   @map("tcs_inr")
+  totalInr              Decimal   @map("total_inr")
+  usdEquivalent         Decimal   @map("usd_equivalent")
+  quoteSnapshot         Json      @map("quote_snapshot")
+  settingsSnapshot      Json      @map("settings_snapshot")
+  paymentMode           String?   @map("payment_mode")
+  paymentStatus         String    @default("NOT_DUE") @map("payment_status")
+  paymentReference      String?   @map("payment_reference")
+  payerName             String?   @map("payer_name")
+  payerAccount          String?   @map("payer_account")
+  payerMatchesApplicant Boolean   @default(false) @map("payer_matches_applicant")
+  paidAt                DateTime? @map("paid_at")
+  kycSubmittedAt        DateTime? @map("kyc_submitted_at")
+  kycApprovedAt         DateTime? @map("kyc_approved_at")
+  dispatchedAt          DateTime? @map("dispatched_at")
+  handedOverAt          DateTime? @map("handed_over_at")
+  cancelledAt           DateTime? @map("cancelled_at")
+  courierName           String?   @map("courier_name")
+  courierAwb            String?   @map("courier_awb")
+  isHighValue           Boolean   @default(false) @map("is_high_value")
+  flags                 Json
+  // denormalised identity keys for PAY-1 aggregation & AML-1 (copied from KYC)
+  pan                   String?
+  passportNumber        String?   @map("passport_number")
+  customerName          String?   @map("customer_name")
+  storeId               String?   @map("store_id")
+  pickupDate            DateTime? @map("pickup_date")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  lines  OrderLine[]
+  kyc    KycRecord?
+  events OrderEvent[]
+  store  Store?       @relation(fields: [storeId], references: [id])
+
+  @@index([status])
+  @@index([createdAt])
+  @@index([mobile])
+  @@index([pan])
+  @@index([passportNumber])
+  @@map("orders")
+}
+
+model OrderLine {
+  id          String   @id @default(cuid())
+  orderId     String   @map("order_id")
+  currency    String
+  forexAmount Decimal  @map("forex_amount")
+  rate        Decimal
+  inrAmount   Decimal  @map("inr_amount")
+  position    Int
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+  order       Order    @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+  @@map("order_lines")
+}
+
+model KycRecord {
+  id                    String    @id @default(cuid())
+  orderId               String    @unique @map("order_id")
+  status                String    @default("NOT_SUBMITTED") // NOT_SUBMITTED | SUBMITTED | APPROVED | REJECTED
+  enteredBy             String    @default("CUSTOMER") @map("entered_by") // CUSTOMER | STAFF
+  fullName              String?   @map("full_name")
+  dateOfBirth           DateTime? @map("date_of_birth")
+  gender                String?
+  nationality           String?
+  residentialStatus     String?   @map("residential_status")
+  mobile                String?
+  email                 String?
+  pan                   String?
+  passportNumber        String?   @map("passport_number")
+  passportIssueDate     DateTime? @map("passport_issue_date")
+  passportExpiryDate    DateTime? @map("passport_expiry_date")
+  passportPlaceOfIssue  String?   @map("passport_place_of_issue")
+  addressLine1          String?   @map("address_line1")
+  addressLine2          String?   @map("address_line2")
+  city                  String?
+  state                 String?
+  pincode               String?
+  addressDiffersFromPassport Boolean @default(false) @map("address_differs_from_passport")
+  destinationCountry    String?   @map("destination_country")
+  travelDate            DateTime? @map("travel_date")
+  returnDate            DateTime? @map("return_date")
+  ticketPnrOrNumber     String?   @map("ticket_pnr_or_number")
+  visaStatus            String?   @map("visa_status")
+  occupation            String?
+  sourceOfFunds         String?   @map("source_of_funds")
+  priorLrsInr           Decimal   @default(0) @map("prior_lrs_inr")
+  fundedByEducationLoan Boolean   @default(false) @map("funded_by_education_loan")
+  payoutMode            String?   @map("payout_mode")
+  payoutBankAccountName String?   @map("payout_bank_account_name")
+  payoutAccountNumber   String?   @map("payout_account_number")
+  payoutIfsc            String?   @map("payout_ifsc")
+  declarationName       String?   @map("declaration_name")
+  declarationAt         DateTime? @map("declaration_at")
+  declarationIp         String?   @map("declaration_ip")
+  declarationUserAgent  String?   @map("declaration_user_agent")
+  selfUseDeclaredAt     DateTime? @map("self_use_declared_at")
+  privacyConsentAt      DateTime? @map("privacy_consent_at")
+  rejectionReason       String?   @map("rejection_reason")
+  originalsSighted      Boolean   @default(false) @map("originals_sighted")
+  submittedAt           DateTime? @map("submitted_at")
+  reviewedAt            DateTime? @map("reviewed_at")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  order     Order         @relation(fields: [orderId], references: [id])
+  documents KycDocument[]
+
+  @@map("kyc_records")
+}
+
+model KycDocument {
+  id               String   @id @default(cuid())
+  kycId            String   @map("kyc_id")
+  type             String
+  originalFilename String   @map("original_filename")
+  mime             String
+  sizeBytes        Int      @map("size_bytes")
+  storageKey       String   @map("storage_key")
+  sha256           String
+  superseded       Boolean  @default(false) // re-uploads supersede, never delete (AML-1)
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+  kyc              KycRecord @relation(fields: [kycId], references: [id])
+
+  @@index([kycId])
+  @@map("kyc_documents")
+}
+
+model OrderEvent {
+  id        String   @id @default(cuid())
+  orderId   String   @map("order_id")
+  type      String
+  message   String
+  actor     String // CUSTOMER | ADMIN | SYSTEM
+  meta      Json
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  order     Order    @relation(fields: [orderId], references: [id])
+
+  @@index([orderId])
+  @@map("order_events")
+}
+
+model Settings {
+  id                    Int       @id @default(1)
+  gstRatePercent        Decimal   @default(18) @map("gst_rate_percent")
+  gstSlabs              Json      @map("gst_slabs")
+  serviceChargeType     String    @default("FLAT") @map("service_charge_type")
+  serviceChargeValue    Decimal   @default(0) @map("service_charge_value")
+  buyMarginPercent      Decimal   @default(1.5) @map("buy_margin_percent")
+  sellMarginPercent     Decimal   @default(1.5) @map("sell_margin_percent")
+  highValueThresholdInr Decimal   @default(200000) @map("high_value_threshold_inr")
+  tcsThresholdInr       Decimal   @default(1000000) @map("tcs_threshold_inr")
+  tcsRates              Json      @map("tcs_rates")
+  ratesUpdatedAt        DateTime? @map("rates_updated_at")
+  chargesUpdatedAt      DateTime? @map("charges_updated_at")
+  chargesUpdatedBy      String?   @map("charges_updated_by")
+  createdAt             DateTime  @default(now()) @map("created_at")
+  updatedAt             DateTime  @updatedAt @map("updated_at")
+
+  @@map("settings")
+}
+
+model Currency {
+  code           String   @id
+  name           String
+  symbol         String
+  countries      Json
+  imagePath      String   @map("image_path")
+  refRate        Decimal  @map("ref_rate") // mid-market INR per 1 unit (feed)
+  buyRate        Decimal  @map("buy_rate") // INR paid to customer per unit (exchange buys)
+  sellRate       Decimal  @map("sell_rate") // INR charged to customer per unit (exchange sells)
+  manualOverride Boolean  @default(false) @map("manual_override")
+  enabled        Boolean  @default(true)
+  sort           Int      @default(0)
+  createdAt      DateTime @default(now()) @map("created_at")
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  @@map("currencies")
+}
+
+model Banner {
+  id        String   @id @default(cuid())
+  imagePath String   @map("image_path")
+  alt       String
+  headline  String?
+  subline   String?
+  linkUrl   String?  @map("link_url")
+  position  Int
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("banners")
+}
+
+model Review {
+  id             String    @id @default(cuid())
+  source         String // GOOGLE | PLACEHOLDER
+  externalId     String?   @unique @map("external_id")
+  authorName     String    @map("author_name")
+  authorPhotoUrl String?   @map("author_photo_url")
+  authorUri      String?   @map("author_uri")
+  rating         Int
+  text           String
+  relativeTime   String    @map("relative_time")
+  publishedAt    DateTime? @map("published_at")
+  visible        Boolean   @default(true)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  @@map("reviews")
+}
+
+model ReviewSummary {
+  id           Int      @id @default(1)
+  rating       Decimal
+  totalRatings Int      @map("total_ratings")
+  mapsUri      String?  @map("maps_uri")
+  fetchedAt    DateTime @map("fetched_at")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  @@map("review_summary")
+}
+
+model CallbackRequest {
+  id            String   @id @default(cuid())
+  name          String
+  mobile        String
+  preferredTime String?  @map("preferred_time")
+  note          String?
+  source        String   @default("CALLBACK") // CALLBACK | CONTACT_FORM | CAP_EXCEEDED
+  handled       Boolean  @default(false)
+  handledAt     DateTime? @map("handled_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  @@map("callback_requests")
+}
+
+model Store {
+  id        String   @id @default(cuid())
+  name      String
+  address   String
+  lat       Float
+  lng       Float
+  phone     String
+  hours     String
+  mapsUrl   String   @map("maps_url")
+  embedUrl  String?  @map("embed_url")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  orders    Order[]
+
+  @@map("stores")
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  actor     String
+  action    String
+  entity    String
+  entityId  String   @map("entity_id")
+  before    Json?
+  after     Json?
+  ip        String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@index([entity, entityId])
+  @@map("audit_logs")
+}
+
+// Daily sequence for human-friendly order refs (APM-YYMMDD-NNNN).
+model OrderSequence {
+  day       String   @id // YYMMDD (Asia/Kolkata)
+  value     Int
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  @@map("order_sequences")
+}

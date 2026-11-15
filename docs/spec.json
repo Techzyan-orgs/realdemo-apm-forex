@@ -1,0 +1,753 @@
+{
+  "meta": {
+    "project": "apm-forex",
+    "title": "APM Tours & Travels - Forex Portal",
+    "spec_version": "1.0.0",
+    "spec_date": "2026-11-15",
+    "target_agent": {
+      "tool": "Claude Code",
+      "model": "claude-opus-5-5",
+      "effort": "medium"
+    },
+    "summary": "Customer-facing forex ordering website (buy/sell foreign currency notes against INR) with an RBI/FEMA-aligned KYC checkout, plus a real-time admin console for KYC approval, hand-over, order history, daily GST/service-charge rates and hero banner management."
+  },
+
+  "agent_instructions": [
+    "Build strictly phase by phase in the order given in build_phases. After each phase run typecheck, lint and that phase's tests, fix failures, then commit before starting the next phase.",
+    "Everything under 'compliance' is a hard requirement, not a suggestion. Every numeric limit there must live in src/config/compliance.ts (or the Settings table where marked admin_editable) and never be hard-coded inside components.",
+    "All money maths happens on the server in src/lib/pricing.ts. The client only displays quotes returned by POST /api/quote. Never trust client-sent totals.",
+    "Do not invent customer reviews, licence numbers, phone numbers or addresses. Use the env placeholders in 'env' and the labelled dev placeholders described in 'reviews'.",
+    "Admin authentication is intentionally deferred. Implement the guard seam described in 'security.admin_auth_seam' so it can be switched on later without refactoring.",
+    "Where this spec says 'verify_with_compliance_officer', implement the stated default, keep it configurable, and add a line to COMPLIANCE_TODO.md.",
+    "Spell it 'Courier' everywhere in UI and code."
+  ],
+
+  "business_context": {
+    "legal_name": "APM Tours & Travels",
+    "address_from_google_maps": "79, Motilal Colony, Rajbari, Dum Dum, Kolkata, West Bengal 700028",
+    "google_maps_short_url": "https://maps.app.goo.gl/zcQq284p51dauH1y9",
+    "google_maps_feature_id": "0x39f89f56b8d73adb:0xc6a6d1abcac63224",
+    "service": "Retail money changing: sells foreign currency notes to outbound travellers against INR, and buys back foreign currency notes for INR. GST and a service fee are charged on each exchange."
+  },
+
+  "assumptions_and_open_questions": [
+    {
+      "id": "A1",
+      "topic": "Licence scope",
+      "assumption": "The exchange holds an RBI Full Fledged Money Changer (FFMC) licence. An FFMC sells forex for private and business travel; wider purposes (overseas education, medical, employment, emigration) are normally AD Category-II scope.",
+      "implementation": "Purposes are config-driven with a per-purpose 'enabled' flag and 'requires_licence' tag. Seed with LICENCE_TYPE=FFMC and all requested purposes enabled; owner must confirm.",
+      "verify_with_compliance_officer": true
+    },
+    {
+      "id": "A2",
+      "topic": "Product",
+      "assumption": "Only foreign currency notes are sold. No forex cards, travellers cheques or wire remittances.",
+      "implementation": "When an order exceeds the currency-note cap, block it and offer 'Request a Call' instead of offering a card product."
+    },
+    {
+      "id": "A3",
+      "topic": "Exchange rates",
+      "assumption": "User did not specify a rate source. Rates are stored per currency (buy_rate, sell_rate in INR) and refreshed from a public reference feed with an admin-set margin.",
+      "implementation": "RateProvider interface; default provider https://open.er-api.com/v6/latest/INR (no key). Margin percent per side lives in Settings. Admin can also override a currency's rate manually from the settings strip."
+    },
+    {
+      "id": "A4",
+      "topic": "Online payment",
+      "assumption": "No gateway chosen yet.",
+      "implementation": "PaymentProvider interface with a MockProvider (dev) that marks an order PAID. Leave a Razorpay adapter stub. Payment page enforces compliance rule PAY-2 (payer = applicant)."
+    },
+    {
+      "id": "A5",
+      "topic": "Admin login",
+      "assumption": "Deferred by owner.",
+      "implementation": "See security.admin_auth_seam. Admin UI shows a persistent red 'Auth disabled - do not deploy publicly' bar while ADMIN_AUTH_ENABLED=false."
+    },
+    {
+      "id": "A6",
+      "topic": "Additions beyond the brief",
+      "list": [
+        "KYC 'Reject / Request re-upload' action with reason (needed alongside Approve).",
+        "'Mark Dispatched' action with courier name + AWB for courier orders, so Track Order can show courier dispatch.",
+        "TCS line item and LRS declaration in checkout.",
+        "Callback requests panel in admin (Request a Call has to land somewhere).",
+        "Audit log and 5-year record retention (no hard deletes).",
+        "Privacy, Terms and Grievance pages linked from the footer."
+      ]
+    }
+  ],
+
+  "tech_stack": {
+    "framework": "Next.js (latest stable, App Router, TypeScript strict, Server Components by default)",
+    "styling": "Tailwind CSS (latest), CSS variables for tokens, no component library; use Radix primitives only for Dialog, Select/Combobox, Tabs, Toast",
+    "database": "Prisma ORM. SQLite for local dev (file:./dev.db); schema must stay Postgres-compatible (no SQLite-only features; status fields are strings validated by zod enums)",
+    "validation": "zod, shared schemas in src/lib/schemas.ts used by both forms (react-hook-form) and API routes",
+    "client_state": "zustand store 'orderDraft' persisted to sessionStorage (never localStorage - contains PII)",
+    "realtime": "Server-Sent Events at GET /api/admin/stream backed by an in-process EventEmitter singleton; client auto-reconnects and falls back to 10s polling",
+    "file_storage": "StorageProvider interface; LocalDiskProvider writes to ./storage (outside /public, git-ignored). KYC files are only readable through guarded API routes",
+    "pdf": "pdf-lib on the server for the KYC/order dossier PDF",
+    "drag_and_drop": "@dnd-kit/core + @dnd-kit/sortable",
+    "animation": "CSS keyframes for marquees; framer-motion only for modal/step transitions",
+    "testing": "vitest for lib/ unit tests, Playwright for the e2e flows in acceptance_tests",
+    "tooling": "eslint, prettier, npm scripts: dev, build, start, lint, typecheck, test, test:e2e, db:migrate, db:seed, assets:fetch"
+  },
+
+  "design_system": {
+    "direction": "Minimalist, modern, calm. Generous whitespace, one accent colour, large numerals for money, soft 1px borders instead of heavy shadows, 16-20px radii, subtle motion. Must feel trustworthy (financial) rather than playful.",
+    "tokens": {
+      "bg": "#FAFAF7",
+      "surface": "#FFFFFF",
+      "ink": "#0E1726",
+      "ink_muted": "#5B6474",
+      "line": "#E7E5DF",
+      "accent": "#0F766E",
+      "accent_ink": "#FFFFFF",
+      "accent_soft": "#E6F4F1",
+      "warn": "#B45309",
+      "warn_soft": "#FEF3C7",
+      "danger": "#B91C1C",
+      "success": "#15803D",
+      "whatsapp": "#25D366"
+    },
+    "typography": {
+      "display": "Plus Jakarta Sans (600/700) via next/font",
+      "body": "Inter via next/font",
+      "numerals": "tabular-nums on every amount, rate and total"
+    },
+    "layout": "max-w-7xl container, 12-col grid, mobile-first; all flows fully usable at 360px width",
+    "accessibility": "WCAG 2.1 AA contrast, focus rings, full keyboard support in modal/combobox/drag list, prefers-reduced-motion pauses marquees and banner autoplay, all form errors announced via aria-live",
+    "currency_format": "INR with Indian digit grouping (Intl.NumberFormat('en-IN')); foreign amounts with ISO code prefix"
+  },
+
+  "compliance": {
+    "disclaimer": "Derived from RBI Master Direction - Money Changing Activities, RBI FAQ 'Miscellaneous forex facilities' (updated 28 Nov 2025), RBI KYC/AML circulars for Authorised Persons, CGST Rule 32(2)(b) and the Finance Act 2026 TCS rates. The licence holder's compliance officer / CA must sign off before go-live.",
+    "sources": [
+      "https://www.rbi.org.in/Scripts/BS_ViewMasterDirections.aspx?id=10206",
+      "https://rbi.org.in/scripts/FAQDisplay.aspx?Id=66",
+      "https://website.rbi.org.in/documents/87730/39710850/AP33K240912FC.pdf",
+      "https://website.rbi.org.in/documents/87730/39710850/CAPDIR610611.pdf",
+      "https://taxguru.in/goods-and-service-tax/gst-foreign-exchange-conversion-service.html",
+      "https://www.indusind.bank.in/iblogs/?p=21916"
+    ],
+    "rules": [
+      {
+        "id": "ELIG-1",
+        "rule": "Forex is sold only on the traveller's own application and identification. One order = one traveller. No third-party or bulk purchases.",
+        "enforce": "KYC form collects the traveller's identity; declaration checkbox 'I am the traveller and the forex is for my own use'. Delivery and store pickup are to the applicant in person only."
+      },
+      {
+        "id": "ELIG-2",
+        "rule": "No foreign exchange is released for travel to Nepal or Bhutan.",
+        "enforce": "Exclude NP and BT from the destination list; show an info note if searched.",
+        "verify_with_compliance_officer": true
+      },
+      {
+        "id": "ELIG-3",
+        "rule": "Forex may be bought only close to travel (default: departure within 60 days of order date).",
+        "enforce": "Travel date field is required for BUY; reject dates in the past or more than max_days_before_travel ahead.",
+        "config": { "max_days_before_travel": 60 },
+        "verify_with_compliance_officer": true
+      },
+      {
+        "id": "CAP-1",
+        "rule": "Foreign currency notes/coins are capped at USD 3,000 (or equivalent) per traveller per visit. Exceptions: Iraq and Libya USD 5,000; Iran, Russian Federation and other CIS republics up to the full entitlement; Haj/Umrah pilgrims up to full entitlement or the Haj Committee cash limit.",
+        "enforce": "Server converts the sum of all BUY lines to USD at the day's reference rate and rejects orders above the cap for the selected destination country. Calculator shows a live 'x of USD 3,000 cash limit used' meter and disables Place Order when exceeded.",
+        "config": {
+          "default_cap_usd": 3000,
+          "country_caps_usd": { "IQ": 5000, "LY": 5000 },
+          "full_entitlement_countries": ["IR", "RU", "AM", "AZ", "BY", "KZ", "KG", "MD", "TJ", "TM", "UZ"],
+          "haj_umrah_purpose_uses_full_entitlement": true
+        }
+      },
+      {
+        "id": "CAP-2",
+        "rule": "Overall Liberalised Remittance Scheme (LRS) entitlement is USD 250,000 per resident individual per financial year (April-March), aggregated across all purposes and all dealers.",
+        "enforce": "KYC form asks 'Forex/remittances already availed this financial year (INR)'; reject if declared + this order exceeds the limit. Applicant signs the Form A2 cum LRS declaration (DECL-1).",
+        "config": { "lrs_limit_usd": 250000 }
+      },
+      {
+        "id": "PAY-1",
+        "rule": "Rupee payment for forex may be accepted in cash only up to INR 50,000. Above that, payment must be by crossed cheque on the applicant's account, banker's cheque / pay order / demand draft, debit/credit/prepaid card or bank transfer. Multiple purchases for the same trip are aggregated.",
+        "enforce": "If amount payable > 50,000 the 'Cash at store' option is hidden and the UI states why. Aggregation: sum BUY orders for the same PAN or passport in the last 30 days and apply the limit on the aggregate.",
+        "config": { "cash_acceptance_limit_inr": 50000, "aggregation_window_days": 30 }
+      },
+      {
+        "id": "PAY-2",
+        "rule": "Non-cash payment must come from the applicant's own bank account or card.",
+        "enforce": "Payment page shows the KYC name and a mandatory confirmation; PaymentProvider adapter must record payer name/account for reconciliation; admin dossier shows a 'payer matches applicant' checkbox."
+      },
+      {
+        "id": "KYC-1",
+        "rule": "Customer identification with officially valid documents before releasing forex; PAN is required for LRS transactions.",
+        "enforce": "See kyc.fields and kyc.documents. For Courier fulfilment online KYC is mandatory before payment; for Store Pickup it is optional online but then compulsory at the counter before hand-over."
+      },
+      {
+        "id": "KYC-2",
+        "rule": "Originals must be sighted. Online uploads are copies; the delivery executive or counter staff verifies original passport (and visa/ticket) at hand-over.",
+        "enforce": "Admin 'Handed Over' dialog requires ticking 'Original passport sighted and matches KYC' and 'Handed to applicant in person' before it can be confirmed."
+      },
+      {
+        "id": "KYC-3",
+        "rule": "Aadhaar, where offered as address proof, must be stored masked (first 8 digits hidden); Aadhaar is never mandatory.",
+        "enforce": "Upload hint tells the customer to upload masked Aadhaar; the Aadhaar number is never captured as a text field."
+      },
+      {
+        "id": "SELL-1",
+        "rule": "When buying foreign currency from customers, cash payout in INR is limited to USD 1,000 equivalent per transaction for residents and USD 3,000 equivalent for foreign visitors / NRIs; anything above is paid by account-payee cheque, demand draft or bank transfer. An encashment certificate is issued.",
+        "enforce": "SELL flow asks residency status; shows payout options accordingly; collects bank account details when payout is by transfer; admin dossier PDF includes an encashment certificate page.",
+        "config": { "cash_payout_limit_resident_usd": 1000, "cash_payout_limit_nonresident_usd": 3000 }
+      },
+      {
+        "id": "SELL-2",
+        "rule": "For purchases from customers below INR 50,000 equivalent a photocopy of the ID need not be retained; at or above it must be.",
+        "enforce": "SELL below threshold: ID type and number fields required, document upload optional. At/above threshold: upload required.",
+        "config": { "sell_id_copy_threshold_inr": 50000 }
+      },
+      {
+        "id": "SELL-3",
+        "rule": "Forex brought into India must have been declared on a Customs Currency Declaration Form (CDF) if notes exceed USD 5,000 or total forex exceeds USD 10,000.",
+        "enforce": "SELL above USD 5,000 equivalent requires a CDF upload."
+      },
+      {
+        "id": "SELL-4",
+        "rule": "Returning residents should surrender unspent forex within 180 days of return and may retain up to USD 2,000 in notes.",
+        "enforce": "Informational note in the SELL flow; return-date field optional.",
+        "verify_with_compliance_officer": true
+      },
+      {
+        "id": "TAX-1",
+        "rule": "GST at 18% applies to the value of the money-changing service, not to the currency. Under CGST Rule 32(2)(b) the deemed taxable value is: up to INR 1,00,000 -> 1% of the gross INR amount, minimum INR 250; INR 1,00,001 to 10,00,000 -> INR 1,000 + 0.5% of the amount above 1,00,000; above 10,00,000 -> INR 5,500 + 0.1% of the amount above 10,00,000, maximum INR 60,000. GST also applies to any separate service fee.",
+        "enforce": "pricing.ts implements the slab table from Settings.gst_slabs; Settings.gst_rate_percent is admin-editable daily. Quote shows 'GST' as one line with an info tooltip explaining it is charged on the service value."
+      },
+      {
+        "id": "TAX-2",
+        "rule": "TCS on LRS (FY 2026-27): nil up to an aggregate INR 10,00,000 per PAN per financial year; above that 20% for travel/other purposes, 2% for education or medical treatment, nil for education financed by a loan from a financial institution.",
+        "enforce": "pricing.ts computes TCS on the portion of (declared prior LRS this FY + this order) that exceeds the threshold. Rates and threshold live in Settings. Quote shows a TCS line only when non-zero.",
+        "config": {
+          "tcs_threshold_inr": 1000000,
+          "tcs_rate_percent": { "default": 20, "EDUCATION": 2, "MEDICAL": 2, "EDUCATION_LOAN": 0 }
+        },
+        "verify_with_compliance_officer": true
+      },
+      {
+        "id": "DECL-1",
+        "rule": "Applicant signs Form A2 cum LRS declaration: purpose of drawal, source of funds is own, total LRS availed this FY, forex not for prohibited purposes, will surrender unused forex.",
+        "enforce": "Rendered as a scrollable declaration on the KYC page with a required checkbox + typed full name. Store timestamp, IP and user agent. Reproduced in the dossier PDF."
+      },
+      {
+        "id": "AML-1",
+        "rule": "Records of transactions and identification are preserved for at least five years; suspicious or structured transactions are escalated.",
+        "enforce": "No hard-delete endpoints for orders, KYC records or documents. AuditLog on every admin action. Orders are auto-flagged (flag badge in admin) when: total > Settings.high_value_threshold_inr; same PAN/passport/mobile has another order within 30 days; order sits within 5% under the USD cap or the INR 50,000 cash limit.",
+        "config": { "retention_years": 5 },
+        "verify_with_compliance_officer": true
+      },
+      {
+        "id": "DISC-1",
+        "rule": "Customer-facing disclosures.",
+        "enforce": "Footer shows RBI licence number and type (env), registered address, grievance officer contact. Calculator and quote carry 'Rates are indicative and are locked only on payment / at the counter'. Consent to data processing (DPDP Act 2023) is a required checkbox on the KYC page with a link to /privacy."
+      }
+    ]
+  },
+
+  "pricing": {
+    "module": "src/lib/pricing.ts (pure functions, 100% unit-tested)",
+    "quote_inputs": ["side: BUY|SELL", "lines: [{currency, forex_amount}]", "purpose", "prior_lrs_inr (optional, default 0)", "settings snapshot"],
+    "formula_buy": [
+      "line_inr = round2(forex_amount * currency.sell_rate)  // rate at which the exchange sells to the customer",
+      "gross_inr = sum(line_inr)",
+      "service_charge = Settings.service_charge_type == 'PERCENT' ? gross_inr * value/100 : value",
+      "gst_taxable_value = slab(gross_inr) per TAX-1",
+      "gst = round2((gst_taxable_value + service_charge) * gst_rate_percent / 100)",
+      "tcs = per TAX-2",
+      "amount_payable = roundToRupee(gross_inr + service_charge + gst + tcs)"
+    ],
+    "formula_sell": [
+      "line_inr = round2(forex_amount * currency.buy_rate)",
+      "gross_inr = sum(line_inr)",
+      "service_charge and gst computed as for BUY",
+      "amount_receivable = roundToRupee(gross_inr - service_charge - gst)"
+    ],
+    "snapshot_rule": "On order creation persist the full quote, each line's rate and a copy of the Settings values used. Later settings changes never alter existing orders.",
+    "calculator_display": "The calculator rows show line_inr per currency (forex x rate). Below the rows, when 2+ currencies exist, show Total (gross_inr). Always show a compact breakdown: Service charge, GST, TCS (if any), Amount payable/receivable.",
+    "usd_equivalent": "usd_equiv = gross_inr / USD reference rate; used for CAP-1, SELL-1 and SELL-3 checks."
+  },
+
+  "data_model": {
+    "note": "Prisma models. All ids are cuid. All tables have created_at / updated_at.",
+    "models": {
+      "Order": {
+        "ref": "string, unique, human-friendly e.g. APM-261115-0042 (date + daily sequence)",
+        "side": "BUY | SELL",
+        "status": "see order_lifecycle.statuses",
+        "fulfilment": "COURIER | STORE_PICKUP",
+        "purpose": "string code from purposes config",
+        "destination_country": "ISO-3166 alpha-2",
+        "mobile": "string, E.164 (+91...)",
+        "travel_date": "date, nullable for SELL",
+        "gross_inr, service_charge_inr, gst_taxable_value_inr, gst_inr, tcs_inr, total_inr, usd_equivalent": "decimal",
+        "settings_snapshot": "json",
+        "payment_mode": "ONLINE | CASH_AT_STORE | CARD_OR_UPI_AT_STORE | CHEQUE_DD | BANK_TRANSFER_PAYOUT | CASH_PAYOUT, nullable",
+        "payment_status": "NOT_DUE | PENDING | PAID",
+        "paid_at, kyc_submitted_at, kyc_approved_at, dispatched_at, handed_over_at": "datetime nullable",
+        "courier_name, courier_awb": "string nullable",
+        "is_high_value": "boolean (total_inr > Settings.high_value_threshold_inr at creation)",
+        "flags": "json array of strings (AML-1)",
+        "relations": "lines OrderLine[], kyc KycRecord?, events OrderEvent[]"
+      },
+      "OrderLine": { "order_id": "fk", "currency": "ISO-4217", "forex_amount": "decimal", "rate": "decimal", "inr_amount": "decimal", "position": "int" },
+      "KycRecord": {
+        "order_id": "fk unique",
+        "status": "NOT_SUBMITTED | SUBMITTED | APPROVED | REJECTED",
+        "fields": "all fields in kyc.fields as columns",
+        "declaration_name, declaration_at, declaration_ip, declaration_user_agent, privacy_consent_at": "audit of DECL-1 and DISC-1",
+        "rejection_reason": "string nullable",
+        "originals_sighted": "boolean default false",
+        "relations": "documents KycDocument[]"
+      },
+      "KycDocument": { "kyc_id": "fk", "type": "see kyc.documents codes", "original_filename": "string", "mime": "string", "size_bytes": "int", "storage_key": "string", "sha256": "string" },
+      "OrderEvent": { "order_id": "fk", "type": "string", "message": "string", "actor": "CUSTOMER | ADMIN | SYSTEM", "meta": "json" },
+      "Settings": {
+        "singleton": "id = 1",
+        "gst_rate_percent": "decimal default 18",
+        "gst_slabs": "json default per TAX-1",
+        "service_charge_type": "FLAT | PERCENT default FLAT",
+        "service_charge_value": "decimal default 0 (owner sets daily)",
+        "buy_margin_percent, sell_margin_percent": "decimal default 1.5",
+        "high_value_threshold_inr": "decimal default 200000",
+        "tcs_threshold_inr, tcs_rates": "per TAX-2",
+        "rates_updated_at, charges_updated_at, charges_updated_by": "audit"
+      },
+      "Currency": { "code": "ISO-4217 pk", "name": "string", "symbol": "string", "countries": "json array of {iso2, name}", "image_path": "string", "buy_rate": "decimal", "sell_rate": "decimal", "manual_override": "boolean", "enabled": "boolean", "sort": "int" },
+      "Banner": { "image_path": "string", "alt": "string", "link_url": "string nullable", "position": "int", "active": "boolean" },
+      "Review": { "source": "GOOGLE | PLACEHOLDER", "external_id": "string unique nullable", "author_name": "string", "author_photo_url": "string nullable", "rating": "int 1-5", "text": "string", "relative_time": "string", "published_at": "datetime nullable", "visible": "boolean" },
+      "ReviewSummary": { "singleton": "id = 1", "rating": "decimal", "total_ratings": "int", "fetched_at": "datetime" },
+      "CallbackRequest": { "name": "string", "mobile": "string", "preferred_time": "string nullable", "note": "string nullable", "handled": "boolean" },
+      "Store": { "name": "string", "address": "string", "lat": "float", "lng": "float", "phone": "string", "hours": "string", "maps_url": "string" },
+      "AuditLog": { "actor": "string", "action": "string", "entity": "string", "entity_id": "string", "before": "json", "after": "json", "ip": "string" }
+    }
+  },
+
+  "order_lifecycle": {
+    "statuses": ["PLACED", "KYC_SUBMITTED", "KYC_REJECTED", "KYC_APPROVED", "PAYMENT_PENDING", "PAID", "DISPATCHED", "HANDED_OVER", "CANCELLED"],
+    "paths": {
+      "courier": "KYC_SUBMITTED (online KYC mandatory) -> KYC_APPROVED -> PAYMENT_PENDING -> PAID (online) -> DISPATCHED -> HANDED_OVER",
+      "store_pickup_online_kyc": "KYC_SUBMITTED -> KYC_APPROVED -> PAYMENT_PENDING -> PAID (online) -> HANDED_OVER",
+      "store_pickup_kyc_at_store": "PLACED -> (admin completes/approves KYC at counter) KYC_APPROVED -> payment at store -> HANDED_OVER"
+    },
+    "transition_guards": [
+      "KYC approve/reject only from KYC_SUBMITTED, or from PLACED for store pickup when staff records KYC at the counter.",
+      "Online payment link is active only when KYC is APPROVED.",
+      "DISPATCHED only for COURIER and only when PAID.",
+      "HANDED_OVER requires KYC APPROVED, originals_sighted = true and payment recorded (PAID online, or a store payment mode chosen in the hand-over dialog subject to PAY-1).",
+      "All transitions go through src/lib/orderMachine.ts, write an OrderEvent and an AuditLog row, and publish a realtime event."
+    ]
+  },
+
+  "purposes": [
+    { "code": "LEISURE", "label": "Leisure / Holiday Travel", "requires_licence": "FFMC", "enabled": true },
+    { "code": "BUSINESS", "label": "Business Travel", "requires_licence": "FFMC", "enabled": true, "extra_documents": ["BUSINESS_LETTER"] },
+    { "code": "EDUCATION", "label": "Overseas Education", "requires_licence": "AD2", "enabled": true, "extra_documents": ["ADMISSION_LETTER"], "extra_fields": ["funded_by_education_loan: boolean"] },
+    { "code": "EMPLOYMENT", "label": "Employment Abroad", "requires_licence": "AD2", "enabled": true, "extra_documents": ["EMPLOYMENT_LETTER"] },
+    { "code": "MEDICAL", "label": "Medical Visit", "requires_licence": "AD2", "enabled": true, "extra_documents": ["MEDICAL_LETTER"] },
+    { "code": "EMIGRATION", "label": "Emigration", "requires_licence": "AD2", "enabled": true },
+    { "code": "VISITING_RELATIVES", "label": "Visiting Friends / Relatives", "requires_licence": "FFMC", "enabled": true },
+    { "code": "PILGRIMAGE", "label": "Haj / Umrah / Pilgrimage", "requires_licence": "FFMC", "enabled": true }
+  ],
+
+  "kyc": {
+    "page": "/checkout/kyc",
+    "top_of_page": {
+      "fulfilment_switch": "Segmented control 'Courier | Store Pickup' pinned at the top; switching re-evaluates required fields immediately and preserves entered data.",
+      "notice_when_courier": "Prominent warn-coloured banner: 'KYC is mandatory for Courier delivery. Your order is dispatched only after KYC approval and online payment.'",
+      "notice_when_store": "Neutral banner with an 'Optional' pill: 'Online KYC is optional for Store Pickup. Complete it now for a faster counter experience, or carry your originals to the store.' plus a secondary button 'Skip and place order'."
+    },
+    "order_summary": "Sticky side panel (bottom sheet on mobile) with currency lines, charges breakdown, total, purpose, mobile, fulfilment.",
+    "fields": [
+      { "name": "full_name", "label": "Full name (as on passport)", "required": true },
+      { "name": "date_of_birth", "required": true, "rule": "18+; otherwise show 'a parent/guardian must apply at the store'" },
+      { "name": "gender", "required": false },
+      { "name": "nationality", "required": true, "default": "Indian" },
+      { "name": "residential_status", "options": ["Resident Indian", "NRI / PIO / OCI", "Foreign national"], "required": true },
+      { "name": "mobile", "required": true, "prefilled": true },
+      { "name": "email", "required": true },
+      { "name": "pan", "label": "PAN", "required": "BUY: always for residents. SELL: when INR >= 50,000", "pattern": "^[A-Z]{5}[0-9]{4}[A-Z]$" },
+      { "name": "passport_number", "required": true, "pattern": "^[A-Z][0-9]{7}$ for Indian passports; free text otherwise" },
+      { "name": "passport_issue_date, passport_expiry_date, passport_place_of_issue", "required": true, "rule": "expiry must be after travel date" },
+      { "name": "address_line1, address_line2, city, state, pincode", "required": true, "rule": "pincode ^[1-9][0-9]{5}$; for COURIER this is also the delivery address and must equal the address-proof address" },
+      { "name": "destination_country", "required": true, "prefilled": "from widget selection" },
+      { "name": "travel_date", "required": "BUY", "rule": "ELIG-3" },
+      { "name": "return_date", "required": false },
+      { "name": "ticket_pnr_or_number", "required": "BUY" },
+      { "name": "visa_status", "options": ["Visa held", "Visa on arrival / e-visa", "Visa not required"], "required": "BUY" },
+      { "name": "occupation", "required": true },
+      { "name": "source_of_funds", "options": ["Salary / Savings", "Business income", "Education loan", "Family support (close relative)", "Other"], "required": "BUY" },
+      { "name": "prior_lrs_inr", "label": "Forex / foreign remittances already availed this financial year (INR)", "required": "BUY", "default": 0 },
+      { "name": "payout_bank_account_name, payout_account_number, payout_ifsc", "required": "SELL when payout is by bank transfer" },
+      { "name": "store_pickup_slot", "required": "STORE_PICKUP", "type": "store + date" }
+    ],
+    "documents": [
+      { "code": "PASSPORT_FRONT", "label": "Passport - photo page", "required": "always" },
+      { "code": "PASSPORT_BACK", "label": "Passport - address page", "required": "always" },
+      { "code": "PAN_CARD", "label": "PAN card", "required": "when PAN field is required" },
+      { "code": "VISA", "label": "Valid visa / e-visa", "required": "BUY when visa_status = 'Visa held'" },
+      { "code": "AIR_TICKET", "label": "Confirmed air ticket (departure within 60 days)", "required": "BUY" },
+      { "code": "ADDRESS_PROOF", "label": "Address proof (masked Aadhaar / Voter ID / Driving licence / utility bill under 2 months)", "required": "when current address differs from passport address, or COURIER" },
+      { "code": "ADMISSION_LETTER", "label": "University admission / I-20 / fee letter", "required": "purpose EDUCATION" },
+      { "code": "EMPLOYMENT_LETTER", "label": "Employment contract / offer letter", "required": "purpose EMPLOYMENT" },
+      { "code": "MEDICAL_LETTER", "label": "Hospital / doctor estimate letter", "required": "purpose MEDICAL" },
+      { "code": "BUSINESS_LETTER", "label": "Employer / company letter on letterhead", "required": "purpose BUSINESS" },
+      { "code": "CDF", "label": "Customs Currency Declaration Form", "required": "SELL above USD 5,000 equivalent" },
+      { "code": "PHOTO", "label": "Recent photograph / selfie", "required": "COURIER" }
+    ],
+    "upload_rules": "JPG, PNG, WEBP or PDF; max 5 MB each; verify magic bytes server-side; random storage keys; store sha256; drag-drop tiles with thumbnail preview, replace and remove.",
+    "declarations": ["DECL-1 Form A2 cum LRS declaration (BUY)", "ELIG-1 self-use declaration", "DISC-1 privacy consent", "Typed full name must equal full_name (case-insensitive)"],
+    "requiredness": "When COURIER: every 'required' rule is enforced and the primary button reads 'Submit KYC & Place Order'. When STORE_PICKUP: the customer may either complete everything (status KYC_SUBMITTED) or use 'Skip and place order' (status PLACED, KycRecord NOT_SUBMITTED); partial KYC is not accepted.",
+    "submit": "Single multipart POST /api/orders containing the order draft, KYC fields and files. Server re-validates everything, re-prices, runs all compliance checks, writes Order + lines + KycRecord + documents in one transaction, emits 'order.created', then redirects to /order/{ref}?t={token}."
+  },
+
+  "public_site": {
+    "header": {
+      "behaviour": "Sticky, transparent over the hero then solid surface with a hairline border after 24px scroll; collapses to a hamburger sheet under lg.",
+      "items": [
+        { "label": "Brand logo", "action": "Link to '/' and scroll to top" },
+        { "label": "Buy Forex", "action": "Navigate to /buy-forex" },
+        { "label": "Sell Forex", "action": "Navigate to /sell-forex" },
+        { "label": "Currency Converter", "action": "Open CurrencyCalculator modal" },
+        { "label": "About Us", "action": "Open /about in a new tab (target=_blank rel=noopener)" },
+        { "label": "Contact Us", "action": "Smooth-scroll to #contact" },
+        { "label": "Store Locator", "action": "Smooth-scroll to #stores" },
+        { "label": "WhatsApp", "action": "Open https://wa.me/{NEXT_PUBLIC_WHATSAPP_NUMBER}?text=... in a new tab" },
+        { "label": "Request a Call", "action": "Open RequestCallback modal" },
+        { "label": "Track Order", "action": "Open TrackOrder popover/modal" }
+      ]
+    },
+    "landing_sections_in_order": [
+      {
+        "id": "hero",
+        "banner_carousel": "Full-width 16:9 carousel fed by GET /api/banners (ordered by position, active only). Cross-fade, 6s autoplay, pause on hover/focus, dots + arrows, swipe on touch, next/image with priority on the first slide. Height: aspect-video capped at 78vh on desktop; on mobile keep 16:9 and let the widget sit below the fold line overlapping the banner's bottom edge.",
+        "order_widget": {
+          "placement": "Floating card overlapping the lower half of the banner (absolute, bottom -translate-y so roughly half the card overlaps the banner); horizontal single row on desktop, stacked on mobile; surface background, 20px radius, soft shadow.",
+          "fields": [
+            "Transaction: dropdown Buy Forex | Sell Forex",
+            "Country (Currency): searchable combobox listing 'United States (USD)', 'United Arab Emirates (AED)' etc.; search matches country name, currency name and code; flag icon per row",
+            "Purpose: dropdown from 'purposes' (enabled only)",
+            "Forex Amount: numeric input with the selected currency code as suffix; live helper text shows the approximate INR",
+            "Mobile No: +91 prefix, 10 digits starting 6-9",
+            "Proceed button"
+          ],
+          "on_proceed": "Validate, write to orderDraft (side, destination country, purpose, mobile, first line {currency, amount}), then open CurrencyCalculator on the list screen with that currency and amount as the first row."
+        }
+      },
+      {
+        "id": "how-it-works",
+        "title": "How it works",
+        "design": "Custom inline SVG / React illustration (no stock diagram): step 1 and 2 as a shared trunk, then three coloured lanes branching with curved connectors, line icons in soft circles, step numbers, and a subtle draw-in animation on scroll. On mobile render as three stacked lane cards under the two shared steps.",
+        "trunk": ["Place your order", "Choose Courier or Store Pickup"],
+        "lanes": [
+          { "name": "Doorstep delivery", "steps": ["Online KYC", "Online payment after KYC approval", "Doorstep delivery (show original passport)"] },
+          { "name": "Store pickup - express", "steps": ["Online KYC (optional, saves time)", "Online payment after KYC approval", "Pick up from store"] },
+          { "name": "Store pickup - walk in", "steps": ["KYC at the store", "Pay at the store", "Pick up from store"] }
+        ],
+        "footnote": "Cash is accepted at the store only up to INR 50,000 per RBI rules."
+      },
+      {
+        "id": "benefits",
+        "title": "Why exchange with APM",
+        "cards": [
+          { "title": "Security", "copy": "RBI-authorised money changer; KYC-verified, receipted transactions." },
+          { "title": "Convenience", "copy": "Order online, get it delivered or pick up at the store." },
+          { "title": "Value", "copy": "Transparent rates with GST and service fee shown upfront." },
+          { "title": "Speed", "copy": "Quick KYC approval and same-day store pickup where available." },
+          { "title": "Genuine notes", "copy": "Currency sourced through authorised channels." },
+          { "title": "Human support", "copy": "Call back or WhatsApp with a real person." }
+        ],
+        "design": "3x2 grid of bordered cards with duotone line icons; hover lifts 2px."
+      },
+      {
+        "id": "reviews",
+        "title": "What travellers say",
+        "header": "Google 'G' mark, average rating (large numeral), star row, total ratings count, 'Read all reviews on Google' link to the maps URL.",
+        "rows": "Two marquee rows of review cards. Row 1 scrolls right-to-left, row 2 left-to-right, about 60s per loop, seamless (duplicate the list), paused on hover/focus and under prefers-reduced-motion (falls back to horizontal scroll-snap). Edge fade masks left and right.",
+        "card": "Author avatar or initial, name, star rating, relative time, review text clamped to 5 lines, small Google mark; accent_soft and surface cards alternate."
+      },
+      {
+        "id": "stores",
+        "title": "Store locator",
+        "content": "Store cards (name, address, hours, phone, 'Get directions') beside an embedded Google Map iframe for the selected store. Seed one store from business_context."
+      },
+      {
+        "id": "contact",
+        "title": "Contact us",
+        "content": "Phone, WhatsApp, email, address, business hours and a short enquiry form that creates a CallbackRequest."
+      },
+      {
+        "id": "footer",
+        "content": "Logo and one-line description; link columns (Buy Forex, Sell Forex, Currency Converter, Track Order | About, Contact, Store Locator | Privacy Policy, Terms, Grievance Redressal); RBI licence type and number; registered address; 'Rates are indicative' disclaimer; copyright."
+      }
+    ],
+    "floating_actions": {
+      "items": ["Request a Callback (opens modal)", "Let's Chat (WhatsApp, brand green)"],
+      "behaviour": "Fixed on the right edge, vertically stacked pill buttons with icon + label (icon-only under sm). Hidden while the hero is in view; fade/slide in once the user scrolls past the hero (IntersectionObserver) and stay visible for the rest of the page. Hidden while any modal is open."
+    },
+    "track_order": {
+      "ui": "Small modal: Order ID + mobile number -> status timeline.",
+      "api": "POST /api/track {ref, mobile}; returns only status, fulfilment, timeline (Order placed, KYC submitted/approved/rejected with reason, Payment, Courier dispatched with courier name + AWB, Handed over) and, when KYC is approved and unpaid, a 'Pay now' link. Never returns KYC data. Rate-limited to 5 attempts per IP per 10 minutes; same generic error for unknown ref and mobile mismatch."
+    },
+    "other_pages": {
+      "/buy-forex": "Page hero with the same order widget locked to Buy, live rate table (currency image, code, name, today's sell rate, 'Buy' button that opens the calculator), documents-required checklist by purpose, RBI limits explainer (CAP-1, PAY-1, ELIG-3), FAQ accordion.",
+      "/sell-forex": "Same structure locked to Sell with buy-back rates, payout rules (SELL-1), documents (SELL-2, SELL-3), surrender note (SELL-4).",
+      "/about": "Company story, licence details, store photo placeholder, values.",
+      "/order/[ref]": "Confirmation + status timeline; access requires the signed token from the redirect or a successful Track Order lookup. Shows order ID with copy button, next step, and 'Pay now' when eligible.",
+      "/order/[ref]/pay": "Amount, payer-name confirmation (PAY-2), PaymentProvider checkout. Mock provider in dev.",
+      "/privacy, /terms, /grievance": "Static MDX pages with placeholder legal copy clearly marked 'Draft - to be reviewed'."
+    }
+  },
+
+  "currency_calculator_modal": {
+    "component": "src/components/calculator/CurrencyCalculator.tsx, mounted once in the root layout, controlled by a zustand ui store so header, widget and rate tables can open it.",
+    "shell": "Centered dialog, max-w-2xl, max-h-[85vh], full-screen sheet on mobile; focus-trapped; Esc and backdrop close with an 'unsaved order' confirm when rows exist. Header row: title, optional Back button, Close button.",
+    "screens": {
+      "select": {
+        "when": "Opens here if the list is empty; also shown after 'Add Another Currency'.",
+        "header": "Search input at the top (filters by currency name, code or country), Close button. When reached via 'Add Another Currency' also show a Back button beside Close that returns to the list without adding.",
+        "body": "Scrollable responsive grid (3 cols mobile, 4-5 desktop) of currency buttons. Each button IS the banknote image of that currency (object-cover, 3:2, rounded) with a small caption strip: flag, code, name. Currencies already in the list are dimmed with an 'Added' tick and are not selectable.",
+        "on_select": "Append a row for that currency and switch to the list screen with its amount input focused."
+      },
+      "list": {
+        "rows": "One row per currency, in the order added: thumbnail of the banknote image + code | amount input (forex) | read-only display box with the INR equivalent at today's rate, plus a small 'rate' caption | delete (trash) icon button.",
+        "total": "When there are 2 or more rows show a Total row directly beneath the INR column. Always show the charges breakdown from POST /api/quote (debounced 300ms): Service charge, GST, TCS (if any), Amount payable / receivable.",
+        "compliance_ui": "Cash-limit meter per CAP-1 for BUY; inline error and disabled Place Order when exceeded, with a 'Request a Call' link. 'Rates are indicative' caption.",
+        "footer": "Two buttons: 'Add Another Currency' (secondary -> select screen with Back visible) and 'Place Order' (primary -> details tab). Place Order is disabled until every row has an amount > 0 and compliance checks pass. Deleting the last row returns to the select screen."
+      },
+      "details": {
+        "label": "Second tab of the popup ('1 Currencies -> 2 Details' stepper at the top)",
+        "fields": [
+          "Purpose dropdown (prefilled from the hero widget when present)",
+          "Mobile No (prefilled from the hero widget when present)",
+          "Transaction side toggle Buy/Sell if the modal was opened from the header (default Buy)",
+          "Destination country (prefilled; required for BUY)",
+          "Fulfilment: two large radio cards - 'Courier - doorstep delivery, online KYC required' and 'Store Pickup - KYC online or at the store'"
+        ],
+        "footer": "'Back' (returns to the list) and 'Proceed to Checkout' (saves the draft and routes to /checkout/kyc)."
+      }
+    },
+    "entry_points": [
+      "Header 'Currency Converter' -> select screen (or list if the draft has rows)",
+      "Hero widget Proceed -> list screen with the chosen currency and amount as the first row; purpose and mobile carried into the details tab",
+      "Rate table 'Buy'/'Sell' buttons -> list screen with that currency added"
+    ]
+  },
+
+  "admin": {
+    "base_path": "/admin",
+    "layout": "Clean, dense, desktop-first dashboard: left-aligned title, top settings strip, tab bar, content. Neutral surface, same tokens as the public site.",
+    "tabs": [
+      { "label": "Live Orders", "target": "/admin (same tab)" },
+      { "label": "Order History", "target": "/admin/history (opens in a new tab)" },
+      { "label": "Banners", "target": "/admin/banners (opens in a new tab)" }
+    ],
+    "settings_strip": {
+      "position": "Top of the dashboard, always visible.",
+      "fields": ["GST rate %", "Service charge (type FLAT|PERCENT + value)", "Buy / sell margin %", "High-value threshold (INR)"],
+      "behaviour": "Inline editable with an explicit 'Update' button, confirmation toast, 'Last updated {time} today' stamp, and an amber 'Not updated today' pill until the first update of the day. Saves via PUT /api/admin/settings, writes AuditLog, applies to new quotes immediately. A collapsible 'Rates' drawer lists currencies with buy/sell rates, a 'Refresh from feed' button and per-currency manual override."
+    },
+    "live_orders": {
+      "data": "All orders whose status is not HANDED_OVER or CANCELLED, sorted by created_at ascending (oldest at the top, newest appended at the bottom).",
+      "realtime": "Subscribes to /api/admin/stream. On 'order.created' append the row at the bottom with a brief highlight animation and scroll hint; on 'order.updated' patch the row in place; on 'order.handed_over' animate the row out.",
+      "sound": "Web Audio API tones generated in code (no audio files): normal order = single soft ping (880 Hz, 150 ms); high-value order (total > threshold) = distinct triple rising chime (660/880/1175 Hz). Because browsers block autoplay, show an 'Enable sound' toggle that must be clicked once per session; persist the preference; show a muted icon when disabled.",
+      "row_columns": ["Order ID", "Time placed", "Buy/Sell", "Currency lines (e.g. USD 1,000 + EUR 500)", "Total INR", "Purpose", "Fulfilment", "Mobile (click to call)", "KYC status pill", "Payment status pill", "Flags", "Actions"],
+      "high_value": "Rows with total_inr > Settings.high_value_threshold_inr (default 2,00,000) get a warn_soft background, a left warn border and a 'High value' badge.",
+      "actions": [
+        { "label": "KYC", "always": true, "action": "Opens /admin/orders/{id}/kyc in a new tab" },
+        { "label": "Mark Dispatched", "when": "COURIER and PAID and not yet dispatched", "action": "Dialog for courier name + AWB -> DISPATCHED" },
+        { "label": "Handed Over", "when": "KYC APPROVED (and, for COURIER, DISPATCHED)", "action": "Confirmation dialog with the KYC-2 checkboxes and, for unpaid store orders, a payment-mode select limited by PAY-1 -> HANDED_OVER; row leaves the dashboard and the database is updated" }
+      ],
+      "side_panel": "Collapsible 'Callback requests' list with a 'Mark handled' button."
+    },
+    "kyc_review_page": {
+      "path": "/admin/orders/[id]/kyc",
+      "content": [
+        "Order summary and charges breakdown",
+        "All customer and KYC fields in labelled groups",
+        "Compliance checklist auto-evaluated per rule id (pass / fail / needs review) with flags",
+        "Document gallery: each document with inline preview (image or PDF), type label, size, and an individual Download button",
+        "'Download all details (PDF)' - server-generated dossier: order, quote breakdown, all KYC fields, declarations with timestamp/IP, document index with sha256, event timeline; for SELL an encashment certificate page",
+        "'Download all documents (ZIP)'",
+        "For store-pickup orders without online KYC: the same KYC form in staff-entry mode so counter staff can record KYC and upload scans"
+      ],
+      "actions": [
+        "'Approve' (primary): sets KYC APPROVED, order -> KYC_APPROVED then PAYMENT_PENDING, unlocks the customer's online payment, emits realtime update. Confirm dialog first.",
+        "'Reject / Request re-upload' (secondary): reason required; customer sees the reason in Track Order and gets a re-upload link."
+      ]
+    },
+    "history_page": {
+      "path": "/admin/history",
+      "content": "Table of ALL orders, ongoing and completed, newest first, server-side pagination (50/page).",
+      "filters": [
+        "Date presets: Today, Yesterday, Last 7 days, Last 30 days, This month, Last month, This financial year (Apr-Mar), Custom range (from/to date pickers)",
+        "Date field selector: placed date | handed-over date",
+        "Status (multi-select) with quick chips 'Ongoing' and 'Completed'",
+        "Side Buy/Sell, Fulfilment, Purpose, Currency, High value only",
+        "Search by order ID, mobile, name, PAN or passport"
+      ],
+      "extras": "Summary tiles for the filtered set (orders, total INR, GST collected, service charge collected); 'Export CSV' of the filtered set; row click opens the KYC page in a new tab. Filters are reflected in the URL query string."
+    },
+    "banners_page": {
+      "path": "/admin/banners",
+      "content": "Vertical list of all hero banners in display order: drag handle, 16:9 thumbnail, alt text, position number, active toggle, delete button.",
+      "reorder": "Drag up/down with @dnd-kit (keyboard accessible); optimistic update then PUT /api/admin/banners/reorder with the ordered ids.",
+      "add": "'Add banner' opens a file picker: JPG/PNG/WEBP, max 4 MB. Validate the aspect ratio is 16:9 within 1% tolerance and at least 1600x900; otherwise reject with a clear message. Alt text required. New banner is appended last and appears on the landing hero on next load (revalidateTag('banners')).",
+      "delete": "Confirm dialog; prevent deleting the last remaining active banner."
+    }
+  },
+
+  "api": {
+    "conventions": "Route handlers under src/app/api. JSON in/out except multipart uploads. zod-validated. Errors as {error: {code, message, fields?}}. Compliance failures use code 'COMPLIANCE' plus rule_id.",
+    "public": [
+      "GET  /api/currencies            -> enabled currencies with rates, countries, image paths",
+      "GET  /api/banners               -> active banners ordered",
+      "GET  /api/reviews               -> summary + visible reviews",
+      "GET  /api/stores",
+      "POST /api/quote                 -> {side, lines, purpose, destination_country, prior_lrs_inr?} => full breakdown + compliance results",
+      "POST /api/orders                -> multipart; creates order (+KYC); returns {ref, token}",
+      "POST /api/orders/[ref]/kyc      -> multipart; late or re-submitted KYC (token required)",
+      "POST /api/orders/[ref]/pay      -> starts payment (KYC must be APPROVED)",
+      "POST /api/payments/webhook      -> provider callback; marks PAID",
+      "POST /api/track                 -> {ref, mobile} => status timeline",
+      "POST /api/callbacks             -> creates CallbackRequest"
+    ],
+    "admin": [
+      "GET  /api/admin/stream                      -> SSE: order.created | order.updated | order.handed_over | callback.created | settings.updated; heartbeat every 25s",
+      "GET  /api/admin/orders?scope=live|history&...filters",
+      "GET  /api/admin/orders/[id]",
+      "POST /api/admin/orders/[id]/kyc/approve",
+      "POST /api/admin/orders/[id]/kyc/reject      -> {reason}",
+      "POST /api/admin/orders/[id]/kyc             -> staff-entered KYC (multipart)",
+      "POST /api/admin/orders/[id]/dispatch        -> {courier_name, awb}",
+      "POST /api/admin/orders/[id]/hand-over       -> {originals_sighted, in_person, payment_mode?}",
+      "GET  /api/admin/orders/[id]/documents/[docId]  -> streams file, Content-Disposition attachment",
+      "GET  /api/admin/orders/[id]/dossier.pdf",
+      "GET  /api/admin/orders/[id]/documents.zip",
+      "GET  /api/admin/orders/export.csv?...filters",
+      "GET|PUT /api/admin/settings",
+      "POST /api/admin/rates/refresh ; PUT /api/admin/currencies/[code]",
+      "GET|POST /api/admin/banners ; DELETE /api/admin/banners/[id] ; PUT /api/admin/banners/reorder ; PATCH /api/admin/banners/[id]",
+      "PATCH /api/admin/callbacks/[id]"
+    ]
+  },
+
+  "assets": {
+    "script": "npm run assets:fetch (scripts/fetch-assets.ts) downloads and optimises third-party images into /public at setup time so the site never hot-links.",
+    "banners": {
+      "requirement": "4 sample hero banners, exactly 16:9, 1920x1080 WEBP, from free-licence libraries (Unsplash or Pexels licence).",
+      "themes": ["assorted foreign banknotes flat-lay", "traveller with passport and boarding pass at an airport", "airplane wing above clouds at sunrise", "world map with currency and travel accessories"],
+      "treatment": "Centre-crop to 16:9 with sharp; add a left-to-right dark gradient overlay in CSS and render headline text as HTML (not baked into the image). Record source URL, author and licence in /public/banners/CREDITS.json."
+    },
+    "currency_images": {
+      "requirement": "One banknote image per currency for the calculator grid, 600x400 WEBP in /public/currencies/{CODE}.webp.",
+      "source": "Wikimedia Commons via its API (search 'File: {currency name} banknote', accept only public-domain or CC licences, record attribution in /public/currencies/CREDITS.json).",
+      "fallback": "If no suitably licensed image is found, generate a designed tile at build time: flag from https://flagcdn.com/{iso2}.svg, large currency symbol, code and name on a soft gradient. The UI must look intentional with either.",
+      "note": "Use low-resolution, cropped or angled images only; some central banks restrict full flat reproductions of banknotes."
+    },
+    "flags": "https://flagcdn.com SVGs downloaded into /public/flags.",
+    "icons": "lucide-react",
+    "logo": "Placeholder wordmark 'APM Forex' as inline SVG in src/components/Logo.tsx; easy to swap."
+  },
+
+  "reviews": {
+    "source": "Google Places API (New) Place Details with fields rating, userRatingCount, reviews, googleMapsUri. Resolve the Place ID once with Text Search for 'APM TOURS & TRAVELS, Motilal Colony, Dum Dum, Kolkata' and store it in GOOGLE_PLACE_ID.",
+    "limitation": "Place Details returns at most 5 reviews per call (most relevant). Two marquee rows need more.",
+    "strategy": "scripts/sync-reviews.ts (also exposed as a daily cron route) upserts returned reviews into the Review table keyed by external_id so the pool grows over time; only rating >= 4 with non-empty text are visible by default. Row 1 gets even-indexed reviews, row 2 odd-indexed; if fewer than 6 exist, both rows loop the same real reviews.",
+    "integrity": "Never fabricate reviews. With no API key in development, seed 8 cards with source=PLACEHOLDER, author 'Sample reviewer' and text beginning 'Placeholder review -'. In production (NODE_ENV=production) PLACEHOLDER reviews are never rendered; if no real reviews exist the section shows only the rating link to Google.",
+    "attribution": "Show author name and photo as returned, a Google mark, and the link to the Google listing, per Places API display policies."
+  },
+
+  "seed_data": {
+    "currencies": ["USD", "EUR", "GBP", "AED", "SGD", "THB", "AUD", "CAD", "CHF", "JPY", "SAR", "MYR", "HKD", "NZD", "CNY", "QAR", "OMR", "KWD", "BHD", "ZAR", "KRW", "IDR", "VND", "LKR", "TRY", "SEK", "DKK", "NOK", "RUB", "EGP"],
+    "country_currency_map": "src/data/countries.ts mapping every destination country to its currency (Eurozone countries -> EUR), excluding NP and BT per ELIG-2.",
+    "settings": "Defaults from data_model.Settings.",
+    "store": "One store from business_context with env-supplied phone and hours.",
+    "demo_orders": "db:seed --demo creates 6 orders across statuses including one high-value, for admin UI development only."
+  },
+
+  "env": {
+    "DATABASE_URL": "file:./dev.db",
+    "STORAGE_DIR": "./storage",
+    "ORDER_TOKEN_SECRET": "random 32+ bytes; signs order access tokens",
+    "ADMIN_AUTH_ENABLED": "false",
+    "NEXT_PUBLIC_SITE_URL": "http://localhost:3000",
+    "NEXT_PUBLIC_WHATSAPP_NUMBER": "91XXXXXXXXXX (placeholder)",
+    "NEXT_PUBLIC_SUPPORT_PHONE": "placeholder",
+    "NEXT_PUBLIC_SUPPORT_EMAIL": "placeholder",
+    "NEXT_PUBLIC_RBI_LICENCE_TYPE": "FFMC",
+    "NEXT_PUBLIC_RBI_LICENCE_NO": "placeholder",
+    "GOOGLE_PLACES_API_KEY": "optional in dev",
+    "GOOGLE_PLACE_ID": "optional in dev",
+    "RATES_FEED_URL": "https://open.er-api.com/v6/latest/INR",
+    "PAYMENT_PROVIDER": "mock"
+  },
+
+  "security": {
+    "admin_auth_seam": "src/lib/adminGuard.ts exports requireAdmin(request). middleware.ts applies it to /admin/* and /api/admin/*. While ADMIN_AUTH_ENABLED=false it allows all requests and the admin layout shows a red warning bar. Later, real auth only needs to be implemented inside requireAdmin.",
+    "kyc_files": "Stored outside /public with random keys; served only via guarded admin routes; Cache-Control: no-store; never exposed in public API responses.",
+    "pii": "Mask PAN/passport in list views (show last 4); full values only on the KYC page. Never log KYC fields. sessionStorage draft is cleared after successful submit.",
+    "input": "zod on every route; file type by magic bytes; size limits; filename sanitisation; rate limiting (in-memory token bucket) on /api/orders, /api/track, /api/callbacks, /api/quote.",
+    "headers": "CSP, X-Frame-Options DENY (except the embedded map iframe source allow-list), Referrer-Policy strict-origin-when-cross-origin; robots noindex on /admin, /order and /checkout.",
+    "order_access": "/order/[ref] requires an HMAC token (ref + mobile) issued at creation or by a successful /api/track lookup."
+  },
+
+  "project_structure": [
+    "src/app/(site)/page.tsx, buy-forex/, sell-forex/, about/, privacy/, terms/, grievance/",
+    "src/app/(site)/checkout/kyc/page.tsx",
+    "src/app/(site)/order/[ref]/page.tsx, order/[ref]/pay/page.tsx",
+    "src/app/admin/page.tsx, admin/history/page.tsx, admin/banners/page.tsx, admin/orders/[id]/kyc/page.tsx",
+    "src/app/api/** (see api)",
+    "src/components/{layout,hero,calculator,how-it-works,benefits,reviews,stores,forms,admin,ui}/",
+    "src/lib/{pricing,compliance,orderMachine,schemas,realtime,storage,pdf,rates,payments,adminGuard,rateLimit,format}.ts",
+    "src/config/compliance.ts, src/data/{countries,purposes}.ts",
+    "src/stores/{orderDraft,ui}.ts",
+    "prisma/schema.prisma, prisma/seed.ts",
+    "scripts/{fetch-assets,sync-reviews}.ts",
+    "tests/unit/**, tests/e2e/**",
+    "README.md, COMPLIANCE_TODO.md"
+  ],
+
+  "build_phases": [
+    { "phase": 1, "name": "Foundation", "deliver": "Next.js + Tailwind scaffold, tokens, fonts, Prisma schema + migration + seed, config/compliance.ts, pricing.ts and compliance.ts with unit tests, /api/currencies, /api/quote." },
+    { "phase": 2, "name": "Assets and landing shell", "deliver": "assets:fetch script, header, hero carousel + floating order widget, how-it-works illustration, benefits, stores, contact, footer, floating action buttons, callback modal." },
+    { "phase": 3, "name": "Currency calculator", "deliver": "Modal with select, list and details screens, quote integration, cash-limit meter, all entry points, orderDraft persistence." },
+    { "phase": 4, "name": "Checkout and KYC", "deliver": "/checkout/kyc with fulfilment switch, conditional requiredness, uploads, declarations, POST /api/orders, storage provider, confirmation page, Track Order, mock payment page." },
+    { "phase": 5, "name": "Admin live dashboard", "deliver": "adminGuard seam, SSE stream, live orders table, sounds, high-value highlight, settings strip, KYC review page with downloads, dossier PDF, approve/reject, dispatch, hand-over." },
+    { "phase": 6, "name": "History and banners", "deliver": "/admin/history with filters, summary tiles and CSV export; /admin/banners with drag reorder, upload validation, delete; hero reads from DB." },
+    { "phase": 7, "name": "Reviews, inner pages, polish", "deliver": "Reviews sync + marquee section, /buy-forex, /sell-forex, /about, legal pages, SEO metadata, accessibility pass, responsive pass, Playwright suite green, README with setup steps and COMPLIANCE_TODO.md." }
+  ],
+
+  "acceptance_tests": {
+    "unit": [
+      "GST slab: gross 6,500 -> taxable value 250; 65,000 -> 650; 6,50,000 -> 3,750; 25,00,000 -> 7,000; cap at 60,000.",
+      "GST = 18% of (taxable value + service charge) and changes when the admin updates the rate.",
+      "TCS: travel, prior 9,00,000 + order 2,00,000 -> 20% of 1,00,000; education same inputs -> 2% of 1,00,000; education loan -> 0; total under 10,00,000 -> 0.",
+      "CAP-1: USD 3,001 equivalent to France rejected; USD 4,500 to Iraq accepted; USD 3,001 to Russia accepted; mixed USD + EUR aggregated.",
+      "PAY-1: total 50,000 allows cash at store; 50,001 does not; two orders by the same PAN within 30 days are aggregated.",
+      "SELL-1: resident cash payout offered up to USD 1,000 equivalent only.",
+      "ELIG-3: travel date 61 days ahead rejected; past date rejected.",
+      "orderMachine rejects illegal transitions (e.g. hand-over before KYC approval)."
+    ],
+    "e2e": [
+      "Hero widget -> Proceed opens the calculator with the chosen currency and amount as row 1; purpose and mobile are prefilled on the details tab.",
+      "Add Another Currency shows the Back button; adding a second currency shows the Total row; deleting returns to a single row without Total.",
+      "Courier order: KYC page shows the mandatory banner, cannot submit without required documents; after submit the order appears at the bottom of /admin within 2 seconds in a second browser context without refresh.",
+      "Store pickup: 'Optional' notice shown; 'Skip and place order' creates a PLACED order; switching fulfilment at the top toggles the notices and required markers.",
+      "Order above 2,00,000 is highlighted in admin and triggers the high-value sound function (assert via a spy on the audio module).",
+      "Admin Approve on the KYC page unlocks 'Pay now' in Track Order; after mock payment and dispatch, Handed Over removes the row from the live list and the order shows as completed in history.",
+      "Each uploaded document downloads individually; dossier PDF downloads and contains the customer's name and order ID.",
+      "Admin updates GST rate and service charge; a new quote reflects them; an existing order's totals are unchanged.",
+      "History: 'Today' and custom date range filters return the expected orders; Ongoing and Completed chips work; CSV export matches the filtered rows.",
+      "Banners: uploading a 4:3 image is rejected; a 16:9 image is added last; dragging it to the top makes it the first hero slide on the landing page; delete removes it.",
+      "Floating Callback and WhatsApp buttons are hidden at the top of the landing page and visible after scrolling past the hero.",
+      "About Us opens in a new tab; Contact Us and Store Locator scroll to their sections; logo returns to the top.",
+      "Reviews rows animate in opposite directions and stop under prefers-reduced-motion.",
+      "Track Order with a wrong mobile returns the generic not-found message."
+    ],
+    "definition_of_done": "npm run typecheck, lint, test and test:e2e all pass; Lighthouse on the landing page is 90+ for Performance and Accessibility on mobile; no compliance number is hard-coded outside config/Settings; README documents setup, env vars, the deferred admin auth and how to plug in a real payment provider."
+  }
+}
