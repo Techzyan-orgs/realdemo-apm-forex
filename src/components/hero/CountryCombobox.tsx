@@ -119,7 +119,7 @@ export function CountryCombobox({
         aria-describedby={describedBy}
         className={cn(
           bare
-            ? "flex h-6 w-full items-center gap-2 text-left text-[15px] font-medium text-ink outline-none focus-ring-none"
+            ? "flex h-5 w-full items-center gap-2 text-left text-sm font-medium text-ink outline-none focus-ring-none"
             : inputClass,
           !bare && "flex items-center gap-2 text-left",
           className,

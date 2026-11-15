@@ -5,7 +5,14 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { useReducedMotion } from "@/components/hooks/useReducedMotion";
 import { cn } from "@/lib/format";
 
-type Banner = { id: string; imagePath: string; alt: string; headline: string | null; subline: string | null; linkUrl: string | null };
+type Banner = {
+  id: string;
+  imagePath: string;
+  alt: string;
+  headline: string | null;
+  subline: string | null;
+  linkUrl: string | null;
+};
 
 const runtime = (p: string) => p.startsWith("/media/") || p.startsWith("/api/");
 const AUTOPLAY_MS = 6000;
@@ -27,7 +34,12 @@ export function HeroCarousel({ banners }: { banners: Banner[] }) {
   }, [index, paused, reduced, count, go]);
 
   if (!count)
-    return <div className="aspect-video max-h-[78vh] w-full bg-gradient-to-br from-accent to-ink lg:aspect-auto lg:h-[78vh]" aria-hidden="true" />;
+    return (
+      <div
+        className="aspect-video max-h-[78vh] w-full bg-gradient-to-br from-accent to-ink lg:aspect-auto lg:h-[78vh]"
+        aria-hidden="true"
+      />
+    );
 
   return (
     <section
@@ -61,15 +73,27 @@ export function HeroCarousel({ banners }: { banners: Banner[] }) {
                 className="object-cover"
               />
               {/* left-to-right dark gradient; headline is HTML, never baked into the image */}
-              <div className="absolute inset-0 bg-gradient-to-r from-ink/80 via-ink/45 to-transparent" aria-hidden="true" />
-              <div className="absolute inset-0 bg-gradient-to-t from-ink/35 via-transparent to-transparent" aria-hidden="true" />
+              <div
+                className="absolute inset-0 bg-gradient-to-r from-ink/80 via-ink/45 to-transparent"
+                aria-hidden="true"
+              />
+              <div
+                className="absolute inset-0 bg-gradient-to-t from-ink/35 via-transparent to-transparent"
+                aria-hidden="true"
+              />
               {(b.headline || b.subline) && (
                 <div className="absolute inset-x-0 top-[38%] mx-auto max-w-7xl px-4 sm:top-[28%] sm:px-6">
                   <div className="max-w-xl text-white">
                     {b.headline && (
-                      <p className="font-display text-xl font-bold leading-tight tracking-tight sm:text-4xl lg:text-5xl">{b.headline}</p>
+                      <p className="font-display text-xl font-bold leading-tight tracking-tight sm:text-4xl lg:text-5xl">
+                        {b.headline}
+                      </p>
                     )}
-                    {b.subline && <p className="mt-2 hidden text-sm text-white/85 sm:mt-4 sm:block sm:text-lg">{b.subline}</p>}
+                    {b.subline && (
+                      <p className="mt-2 hidden text-sm text-white/85 sm:mt-4 sm:block sm:text-lg">
+                        {b.subline}
+                      </p>
+                    )}
                   </div>
                 </div>
               )}
@@ -84,7 +108,10 @@ export function HeroCarousel({ banners }: { banners: Banner[] }) {
               aria-hidden={!active}
               data-slide-index={i}
               data-active={active || undefined}
-              className={cn("absolute inset-0 transition-opacity duration-700 ease-out", active ? "z-[1] opacity-100" : "z-0 opacity-0")}
+              className={cn(
+                "absolute inset-0 transition-opacity duration-700 ease-out",
+                active ? "z-[1] opacity-100" : "z-0 opacity-0",
+              )}
             >
               {b.linkUrl ? (
                 <a href={b.linkUrl} tabIndex={active ? 0 : -1} className="absolute inset-0">
@@ -128,7 +155,12 @@ export function HeroCarousel({ banners }: { banners: Banner[] }) {
                 aria-current={i === index}
                 className="grid h-6 w-6 place-items-center"
               >
-                <span className={cn("block h-1.5 rounded-full transition-all", i === index ? "w-6 bg-white" : "w-1.5 bg-white/55")} />
+                <span
+                  className={cn(
+                    "block h-1.5 rounded-full transition-all",
+                    i === index ? "w-6 bg-white" : "w-1.5 bg-white/55",
+                  )}
+                />
               </button>
             ))}
           </div>

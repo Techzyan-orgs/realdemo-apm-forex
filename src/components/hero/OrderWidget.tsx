@@ -137,11 +137,11 @@ export function OrderWidget({
       }
       data-testid="order-widget"
       className={cn(
-        "rounded-[28px] border border-line/80 bg-surface p-3 shadow-[0_30px_80px_-40px_rgba(14,23,38,0.55)]",
+        "rounded-[24px] border border-line/80 bg-surface p-2.5 shadow-[0_30px_80px_-40px_rgba(14,23,38,0.55)]",
         className,
       )}
     >
-      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 pb-3">
+      <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5 pb-2.5">
         {lockedSide ? (
           <p className="py-1.5 text-sm font-semibold text-ink">
             {lockedSide === "BUY" ? "Buy foreign currency" : "Sell foreign currency"}
@@ -151,7 +151,7 @@ export function OrderWidget({
             role="radiogroup"
             aria-label="Transaction"
             data-testid="widget-side"
-            className="inline-flex rounded-full bg-bg p-1 ring-1 ring-inset ring-line"
+            className="inline-flex rounded-full bg-bg p-0.5 ring-1 ring-inset ring-line"
           >
             {(["BUY", "SELL"] as const).map((v) => (
               <button
@@ -161,7 +161,7 @@ export function OrderWidget({
                 aria-checked={side === v}
                 onClick={() => setSide(v)}
                 className={cn(
-                  "rounded-full px-4 py-1.5 text-[13px] font-semibold leading-none transition-colors duration-200",
+                  "rounded-full px-3.5 py-1.5 text-xs font-semibold leading-none transition-colors duration-200",
                   side === v ? "bg-accent text-accent-ink" : "text-ink-muted hover:text-ink",
                 )}
               >
@@ -192,10 +192,10 @@ export function OrderWidget({
         </p>
       </div>
 
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-stretch">
+      <div className="flex flex-col gap-2.5 lg:flex-row lg:items-stretch">
         <div
           className={cn(
-            "grid flex-1 overflow-hidden rounded-2xl border border-line bg-bg/60",
+            "grid flex-1 overflow-hidden rounded-[14px] border border-line bg-bg/60",
             "sm:grid-cols-2",
             "lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,1fr)]",
           )}
@@ -289,7 +289,7 @@ export function OrderWidget({
           <Cell label="Mobile number" error={errors.mobile}>
             {({ id, describedBy, invalid }) => (
               <div className="flex items-center gap-2">
-                <span className="text-[15px] font-medium text-ink-muted">+91</span>
+                <span className="text-sm font-medium text-ink-muted">+91</span>
                 <input
                   id={id}
                   aria-describedby={describedBy}
@@ -309,17 +309,17 @@ export function OrderWidget({
         </div>
         <button
           type="submit"
-          className="inline-flex h-[52px] items-center justify-center gap-2 rounded-2xl bg-accent px-8 text-[15px] font-semibold text-accent-ink transition-colors hover:bg-[#0c625b] lg:h-auto"
+          className="inline-flex h-11 items-center justify-center gap-2 rounded-[14px] bg-accent px-6 text-sm font-semibold text-accent-ink transition-colors hover:bg-[#0c625b] lg:h-auto"
           data-testid="widget-proceed"
         >
           Proceed <ArrowRight className="h-4 w-4" aria-hidden="true" />
         </button>
       </div>
 
-      <ul className="flex flex-wrap items-center gap-x-6 gap-y-1.5 pt-3 text-xs text-ink-muted">
+      <ul className="flex flex-wrap items-center gap-x-5 gap-y-1 pt-2.5 text-[11px] text-ink-muted">
         {TRUST.map((t) => (
           <li key={t} className="flex items-center gap-1.5">
-            <ShieldCheck className="h-3.5 w-3.5 shrink-0 text-accent" aria-hidden="true" />
+            <ShieldCheck className="h-3 w-3 shrink-0 text-accent" aria-hidden="true" />
             {t}
           </li>
         ))}
@@ -335,7 +335,7 @@ const TRUST = [
 ];
 
 const bareControl =
-  "h-6 w-full bg-transparent text-[15px] font-medium text-ink outline-none focus-ring-none placeholder:font-normal placeholder:text-ink-muted/70";
+  "h-5 w-full bg-transparent text-sm font-medium text-ink outline-none focus-ring-none placeholder:font-normal placeholder:text-ink-muted/70";
 const CHEVRON =
   "url(\"data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%235B6474' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E\")";
 
@@ -364,7 +364,7 @@ function Cell({
   return (
     <div
       className={cn(
-        "relative flex min-w-0 flex-col justify-center gap-0.5 px-4 py-2 transition-colors hover:bg-surface focus-within:bg-surface focus-within:ring-2 focus-within:ring-inset focus-within:ring-accent/50",
+        "relative flex min-w-0 flex-col justify-center px-3.5 py-1.5 transition-colors hover:bg-surface focus-within:bg-surface focus-within:ring-2 focus-within:ring-inset focus-within:ring-accent/50",
         error && "bg-danger/[0.04]",
         className,
       )}
@@ -372,14 +372,14 @@ function Cell({
       <div className="flex items-baseline justify-between gap-2">
         <label
           htmlFor={id}
-          className="shrink-0 text-[11px] font-semibold uppercase tracking-[0.08em] text-ink-muted"
+          className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.08em] text-ink-muted"
         >
           {label}
         </label>
         <span
           id={errId}
           aria-live="polite"
-          className="truncate text-[11px] font-medium text-danger"
+          className="truncate text-[10px] font-medium text-danger"
           title={error}
         >
           {error ?? ""}
