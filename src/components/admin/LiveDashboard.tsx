@@ -4,13 +4,12 @@ import { ArrowDown, FileSearch, PackageCheck, Truck } from "lucide-react";
 import { AdminHeader } from "@/components/admin/AdminHeader";
 import { CallbacksPanel } from "@/components/admin/CallbacksPanel";
 import { DispatchDialog, HandOverDialog } from "@/components/admin/OrderActionDialogs";
-import { FlagBadges, KycPill, PaymentPill, StatusPill } from "@/components/admin/pills";
+import { KycPill, PaymentPill, StatusPill } from "@/components/admin/pills";
 import { SettingsStrip } from "@/components/admin/SettingsStrip";
 import { SoundToggle } from "@/components/admin/SoundToggle";
 import { useAdminStream, type StreamStatus } from "@/components/admin/useAdminStream";
 import { Badge } from "@/components/ui/Badge";
 import { Button } from "@/components/ui/Button";
-import { purposeLabel } from "@/data/purposes";
 import { cn, formatInr, formatNumber, formatTime } from "@/lib/format";
 import type { LiveOrderDTO } from "@/lib/orderDto";
 import type { SettingsDTO } from "@/lib/settings";
@@ -19,10 +18,19 @@ import { sound } from "@/lib/sound";
 type Row = LiveOrderDTO & { _fresh?: boolean; _leaving?: boolean };
 const isLive = (o: LiveOrderDTO) => o.status !== "HANDED_OVER" && o.status !== "CANCELLED";
 
-export function LiveDashboard({ initialOrders, initialSettings }: { initialOrders: LiveOrderDTO[]; initialSettings: SettingsDTO }) {
+export function LiveDashboard({
+  initialOrders,
+  initialSettings,
+}: {
+  initialOrders: LiveOrderDTO[];
+  initialSettings: SettingsDTO;
+}) {
   const [rows, setRows] = useState<Row[]>(initialOrders);
   const [settings, setSettings] = useState(initialSettings);
-  const [dialog, setDialog] = useState<{ kind: "dispatch" | "handover"; order: LiveOrderDTO } | null>(null);
+  const [dialog, setDialog] = useState<{
+    kind: "dispatch" | "handover";
+    order: LiveOrderDTO;
+  } | null>(null);
   const [callbackKey, setCallbackKey] = useState(0);
   const [newBelow, setNewBelow] = useState(0);
   const tableEnd = useRef<HTMLDivElement>(null);
@@ -41,7 +49,11 @@ export function LiveDashboard({ initialOrders, initialSettings }: { initialOrder
   const upsert = useCallback(
     (o: LiveOrderDTO) => {
       if (!isLive(o)) return removeLater(o.id);
-      setRows((rs) => (rs.some((r) => r.id === o.id) ? rs.map((r) => (r.id === o.id ? { ...o, _fresh: r._fresh } : r)) : [...rs, { ...o, _fresh: true }]));
+      setRows((rs) =>
+        rs.some((r) => r.id === o.id)
+          ? rs.map((r) => (r.id === o.id ? { ...o, _fresh: r._fresh } : r))
+          : [...rs, { ...o, _fresh: true }],
+      );
     },
     [removeLater],
   );
@@ -59,7 +71,10 @@ export function LiveDashboard({ initialOrders, initialSettings }: { initialOrder
       const known = new Set(rs.map((x) => x.id));
       const fresh = orders.filter((o) => !known.has(o.id));
       const byId = new Map(orders.map((o) => [o.id, o]));
-      return [...rs.filter((x) => byId.has(x.id)).map((x) => ({ ...byId.get(x.id)!, _fresh: x._fresh })), ...fresh.map((o) => ({ ...o, _fresh: true }))];
+      return [
+        ...rs.filter((x) => byId.has(x.id)).map((x) => ({ ...byId.get(x.id)!, _fresh: x._fresh })),
+        ...fresh.map((o) => ({ ...o, _fresh: true })),
+      ];
     });
   }, []);
 
@@ -114,33 +129,55 @@ export function LiveDashboard({ initialOrders, initialSettings }: { initialOrder
       </AdminHeader>
 
       <main className="mx-auto flex max-w-[1600px] flex-col gap-4 px-6 py-5 xl:flex-row xl:items-start">
-        <section aria-label="Live orders" className="min-w-0 flex-1 rounded-xl border border-line bg-surface">
+        <section
+          aria-label="Live orders"
+          className="min-w-0 flex-1 rounded-xl border border-line bg-surface"
+        >
           <div className="flex items-center gap-3 border-b border-line px-4 py-2.5">
             <h2 className="text-sm font-semibold">
-              Open orders <span className="text-ink-muted num">({rows.filter((r) => !r._leaving).length})</span>
+              Open orders{" "}
+              <span className="text-ink-muted num">({rows.filter((r) => !r._leaving).length})</span>
             </h2>
             {highCount > 0 && <Badge tone="warn">{highCount} high value</Badge>}
-            <span className="ml-auto text-xs text-ink-muted">Oldest first · new orders appear at the bottom</span>
+            <span className="ml-auto text-xs text-ink-muted">
+              Oldest first · new orders appear at the bottom
+            </span>
           </div>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1240px] text-[13px]" data-testid="live-orders">
+            {/* six stacked columns: fits the dashboard width without horizontal scrolling */}
+            <table className="w-full text-[13px]" data-testid="live-orders">
               <thead>
                 <tr className="border-b border-line text-left text-[11px] uppercase tracking-wide text-ink-muted">
-                  {["Order ID", "Placed", "Side", "Currency", "Total INR", "Purpose", "Fulfilment", "Mobile", "KYC", "Payment", "Flags", "Actions"].map((h) => (
-                    <th key={h} scope="col" className={cn("px-3 py-2 font-medium", h === "Total INR" && "text-right")}>{h}</th>
-                  ))}
+                  {["Order", "Currency", "Total INR", "Delivery", "KYC / Payment", "Actions"].map(
+                    (h) => (
+                      <th
+                        key={h}
+                        scope="col"
+                        className={cn("px-3 py-2 font-medium", h === "Total INR" && "text-right")}
+                      >
+                        {h}
+                      </th>
+                    ),
+                  )}
                 </tr>
               </thead>
               <tbody>
                 {rows.length === 0 && (
                   <tr>
-                    <td colSpan={12} className="px-4 py-12 text-center text-ink-muted">No open orders. New orders will appear here in real time.</td>
+                    <td colSpan={6} className="px-4 py-12 text-center text-ink-muted">
+                      No open orders. New orders will appear here in real time.
+                    </td>
                   </tr>
                 )}
                 {rows.map((o) => {
                   const high = o.totalInr > settings.highValueThresholdInr;
-                  const canDispatch = o.fulfilment === "COURIER" && o.paymentStatus === "PAID" && !o.dispatchedAt && o.status === "PAID";
-                  const canHandOver = o.kycStatus === "APPROVED" && (o.fulfilment !== "COURIER" || !!o.dispatchedAt);
+                  const canDispatch =
+                    o.fulfilment === "COURIER" &&
+                    o.paymentStatus === "PAID" &&
+                    !o.dispatchedAt &&
+                    o.status === "PAID";
+                  const canHandOver =
+                    o.kycStatus === "APPROVED" && (o.fulfilment !== "COURIER" || !!o.dispatchedAt);
                   return (
                     <tr
                       key={o.id}
@@ -155,27 +192,46 @@ export function LiveDashboard({ initialOrders, initialSettings }: { initialOrder
                       )}
                     >
                       <td className="px-3 py-2.5">
-                        <div className="whitespace-nowrap font-semibold num">{o.ref}</div>
-                        {high && <Badge tone="warn" className="mt-1">High value</Badge>}
-                        <div className="mt-0.5 text-[11px] text-ink-muted"><StatusPill status={o.status} /></div>
+                        <CopyRef value={o.ref} />
+                        <div className="mt-1 flex flex-wrap items-center gap-1.5 text-[11px] text-ink-muted">
+                          <span className="num">{formatTime(o.createdAt)}</span>
+                          <StatusPill status={o.status} />
+                          {high && <Badge tone="warn">High value</Badge>}
+                        </div>
                       </td>
-                      <td className="px-3 py-2.5 whitespace-nowrap num text-ink-muted">{formatTime(o.createdAt)}</td>
                       <td className="px-3 py-2.5">
-                        <Badge tone={o.side === "BUY" ? "accent" : "neutral"}>{o.side === "BUY" ? "Buy" : "Sell"}</Badge>
+                        <div className="flex items-center gap-1.5">
+                          <Badge tone={o.side === "BUY" ? "accent" : "neutral"}>
+                            {o.side === "BUY" ? "Buy" : "Sell"}
+                          </Badge>
+                          <span className="num">
+                            {o.lines
+                              .map((l) => `${l.currency} ${formatNumber(l.forexAmount)}`)
+                              .join(" + ")}
+                          </span>
+                        </div>
+                        {o.customerName && (
+                          <div className="mt-1 text-[11px] text-ink-muted">{o.customerName}</div>
+                        )}
                       </td>
-                      <td className="px-3 py-2.5 num whitespace-nowrap">
-                        {o.lines.map((l) => `${l.currency} ${formatNumber(l.forexAmount)}`).join(" + ")}
-                        {o.customerName && <div className="text-[11px] text-ink-muted">{o.customerName}</div>}
+                      <td className="px-3 py-2.5 text-right font-semibold num whitespace-nowrap">
+                        {formatInr(o.totalInr, 0)}
                       </td>
-                      <td className="px-3 py-2.5 text-right font-semibold num whitespace-nowrap">{formatInr(o.totalInr, 0)}</td>
-                      <td className="max-w-[140px] px-3 py-2.5 text-ink-muted">{purposeLabel(o.purpose)}</td>
-                      <td className="px-3 py-2.5 whitespace-nowrap">{o.fulfilment === "COURIER" ? "Courier" : "Store Pickup"}</td>
                       <td className="px-3 py-2.5 whitespace-nowrap">
-                        <a href={`tel:${o.mobile}`} className="text-accent num hover:underline">{o.mobile}</a>
+                        <div>{o.fulfilment === "COURIER" ? "Courier" : "Store Pickup"}</div>
+                        <a
+                          href={`tel:${o.mobile}`}
+                          className="mt-0.5 inline-block text-[12px] text-accent num hover:underline"
+                        >
+                          {o.mobile}
+                        </a>
                       </td>
-                      <td className="px-3 py-2.5"><KycPill status={o.kycStatus} /></td>
-                      <td className="px-3 py-2.5"><PaymentPill status={o.paymentStatus} mode={o.paymentMode} /></td>
-                      <td className="px-3 py-2.5"><FlagBadges flags={o.flags} /></td>
+                      <td className="px-3 py-2.5">
+                        <div className="flex flex-col items-start gap-1">
+                          <KycPill status={o.kycStatus} />
+                          <PaymentPill status={o.paymentStatus} mode={o.paymentMode} />
+                        </div>
+                      </td>
                       <td className="px-3 py-2.5">
                         <div className="flex flex-wrap gap-1.5">
                           <a
@@ -188,12 +244,19 @@ export function LiveDashboard({ initialOrders, initialSettings }: { initialOrder
                             <FileSearch className="h-3.5 w-3.5" /> KYC
                           </a>
                           {canDispatch && (
-                            <Button size="sm" variant="secondary" onClick={() => setDialog({ kind: "dispatch", order: o })}>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              onClick={() => setDialog({ kind: "dispatch", order: o })}
+                            >
                               <Truck className="h-3.5 w-3.5" /> Mark Dispatched
                             </Button>
                           )}
                           {canHandOver && (
-                            <Button size="sm" onClick={() => setDialog({ kind: "handover", order: o })}>
+                            <Button
+                              size="sm"
+                              onClick={() => setDialog({ kind: "handover", order: o })}
+                            >
                               <PackageCheck className="h-3.5 w-3.5" /> Handed Over
                             </Button>
                           )}
@@ -223,8 +286,12 @@ export function LiveDashboard({ initialOrders, initialSettings }: { initialOrder
         </button>
       )}
 
-      {dialog?.kind === "dispatch" && <DispatchDialog order={dialog.order} onClose={done} onDone={done} />}
-      {dialog?.kind === "handover" && <HandOverDialog order={dialog.order} onClose={done} onDone={done} />}
+      {dialog?.kind === "dispatch" && (
+        <DispatchDialog order={dialog.order} onClose={done} onDone={done} />
+      )}
+      {dialog?.kind === "handover" && (
+        <HandOverDialog order={dialog.order} onClose={done} onDone={done} />
+      )}
     </>
   );
 }
@@ -237,9 +304,53 @@ function StreamBadge({ status }: { status: StreamStatus }) {
   } as const;
   const s = map[status];
   return (
-    <span className="inline-flex items-center gap-1.5 text-xs text-ink-muted" data-stream-status={status} aria-live="polite">
+    <span
+      className="inline-flex items-center gap-1.5 text-xs text-ink-muted"
+      data-stream-status={status}
+      aria-live="polite"
+    >
       <span className={cn("h-2 w-2 rounded-full", s.cls, status === "live" && "animate-pulse")} />
       {s.label}
     </span>
+  );
+}
+
+/** Order ID that copies itself to the clipboard when clicked (no separate copy button). */
+function CopyRef({ value }: { value: string }) {
+  const [copied, setCopied] = useState(false);
+  const copy = async () => {
+    try {
+      await navigator.clipboard.writeText(value);
+    } catch {
+      // fallback for non-secure contexts
+      const t = document.createElement("textarea");
+      t.value = value;
+      document.body.appendChild(t);
+      t.select();
+      document.execCommand("copy");
+      t.remove();
+    }
+    setCopied(true);
+    setTimeout(() => setCopied(false), 1500);
+  };
+  return (
+    <button
+      type="button"
+      onClick={copy}
+      title="Click to copy"
+      aria-label={`Copy order ID ${value}`}
+      className="relative -mx-1 rounded px-1 text-left font-semibold whitespace-nowrap num underline decoration-dotted decoration-ink/25 underline-offset-4 transition-colors hover:bg-accent-soft hover:text-accent hover:decoration-accent/50"
+    >
+      {value}
+      <span
+        aria-live="polite"
+        className={cn(
+          "pointer-events-none absolute left-full top-1/2 ml-1.5 -translate-y-1/2 rounded bg-ink px-1.5 py-0.5 text-[10px] font-medium text-white transition-opacity",
+          copied ? "opacity-100" : "opacity-0",
+        )}
+      >
+        {copied ? "Copied" : ""}
+      </span>
+    </button>
   );
 }
