@@ -192,10 +192,10 @@ export function OrderWidget({
         </p>
       </div>
 
-      <div className="flex flex-col gap-2.5 lg:flex-row lg:items-stretch">
+      <div className="flex flex-col gap-2.5 lg:flex-row lg:items-stretch lg:gap-0 lg:rounded-[14px] lg:border lg:border-line lg:bg-bg/60">
         <div
           className={cn(
-            "grid flex-1 overflow-hidden rounded-[14px] border border-line bg-bg/60",
+            "grid flex-1 rounded-[14px] border border-line bg-bg/60 lg:rounded-none lg:border-0 lg:bg-transparent",
             "sm:grid-cols-2",
             "lg:grid-cols-[minmax(0,1.45fr)_minmax(0,1.15fr)_minmax(0,1fr)_minmax(0,1fr)]",
           )}
@@ -309,10 +309,14 @@ export function OrderWidget({
         </div>
         <button
           type="submit"
-          className="inline-flex h-11 items-center justify-center gap-2 rounded-[14px] bg-accent px-6 text-sm font-semibold text-accent-ink transition-colors hover:bg-[#0c625b] lg:h-auto"
+          className="group/proceed inline-flex h-11 items-center justify-center gap-1.5 rounded-[14px] bg-accent px-5 text-[13px] font-semibold text-accent-ink transition-colors hover:bg-[#0c625b] focus-visible:outline-offset-2 lg:m-1 lg:h-auto lg:rounded-[10px] lg:px-4"
           data-testid="widget-proceed"
         >
-          Proceed <ArrowRight className="h-4 w-4" aria-hidden="true" />
+          Proceed{" "}
+          <ArrowRight
+            className="h-3.5 w-3.5 transition-transform group-hover/proceed:translate-x-0.5"
+            aria-hidden="true"
+          />
         </button>
       </div>
 
@@ -364,8 +368,11 @@ function Cell({
   return (
     <div
       className={cn(
-        "relative flex min-w-0 flex-col justify-center px-3.5 py-1.5 transition-colors hover:bg-surface focus-within:bg-surface focus-within:ring-2 focus-within:ring-inset focus-within:ring-accent/50",
-        error && "bg-danger/[0.04]",
+        "relative isolate flex min-w-0 flex-col justify-center px-3.5 py-1.5",
+        // highlight inset 3px with a radius concentric to the bar (13px inner - 3px = 10px)
+        "before:absolute before:inset-[3px] before:-z-10 before:rounded-[10px] before:bg-surface before:opacity-0 before:transition-opacity hover:before:opacity-100 focus-within:before:opacity-100",
+        "after:pointer-events-none after:absolute after:inset-[3px] after:rounded-[10px] after:opacity-0 after:ring-[1.5px] after:ring-accent/60 after:transition-opacity focus-within:after:opacity-100",
+        error && "before:bg-danger/[0.05] before:opacity-100",
         className,
       )}
     >
