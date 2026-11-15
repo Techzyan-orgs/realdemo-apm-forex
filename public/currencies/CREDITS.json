@@ -1,0 +1,182 @@
+{
+  "USD": {
+    "type": "designed-tile",
+    "file": "/currencies/USD.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "EUR": {
+    "type": "designed-tile",
+    "file": "/currencies/EUR.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "GBP": {
+    "type": "designed-tile",
+    "file": "/currencies/GBP.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "AED": {
+    "type": "designed-tile",
+    "file": "/currencies/AED.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "SGD": {
+    "type": "designed-tile",
+    "file": "/currencies/SGD.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "THB": {
+    "type": "designed-tile",
+    "file": "/currencies/THB.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "AUD": {
+    "type": "designed-tile",
+    "file": "/currencies/AUD.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "CAD": {
+    "type": "designed-tile",
+    "file": "/currencies/CAD.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "CHF": {
+    "type": "designed-tile",
+    "file": "/currencies/CHF.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "JPY": {
+    "type": "designed-tile",
+    "file": "/currencies/JPY.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "SAR": {
+    "type": "designed-tile",
+    "file": "/currencies/SAR.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "MYR": {
+    "type": "designed-tile",
+    "file": "/currencies/MYR.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "HKD": {
+    "type": "designed-tile",
+    "file": "/currencies/HKD.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "NZD": {
+    "type": "designed-tile",
+    "file": "/currencies/NZD.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "CNY": {
+    "type": "designed-tile",
+    "file": "/currencies/CNY.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "QAR": {
+    "type": "designed-tile",
+    "file": "/currencies/QAR.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "OMR": {
+    "type": "designed-tile",
+    "file": "/currencies/OMR.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "KWD": {
+    "type": "designed-tile",
+    "file": "/currencies/KWD.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "BHD": {
+    "type": "designed-tile",
+    "file": "/currencies/BHD.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "ZAR": {
+    "type": "designed-tile",
+    "file": "/currencies/ZAR.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "KRW": {
+    "type": "designed-tile",
+    "file": "/currencies/KRW.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "IDR": {
+    "type": "designed-tile",
+    "file": "/currencies/IDR.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "VND": {
+    "type": "designed-tile",
+    "file": "/currencies/VND.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "LKR": {
+    "type": "designed-tile",
+    "file": "/currencies/LKR.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "TRY": {
+    "type": "designed-tile",
+    "file": "/currencies/TRY.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "SEK": {
+    "type": "designed-tile",
+    "file": "/currencies/SEK.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "DKK": {
+    "type": "designed-tile",
+    "file": "/currencies/DKK.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "NOK": {
+    "type": "designed-tile",
+    "file": "/currencies/NOK.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "RUB": {
+    "type": "designed-tile",
+    "file": "/currencies/RUB.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  },
+  "EGP": {
+    "type": "designed-tile",
+    "file": "/currencies/EGP.webp",
+    "source": "generated",
+    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+  }
+}

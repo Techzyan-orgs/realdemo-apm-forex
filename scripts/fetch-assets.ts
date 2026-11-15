@@ -22,6 +22,9 @@ import { CURRENCY_META, type CurrencyMeta } from "../src/data/currencies";
 const PUBLIC = path.resolve(process.cwd(), "public");
 const FORCE = process.argv.includes("--force");
 const ONLY = process.argv.find((a) => a.startsWith("--only="))?.split("=")[1];
+/** --codes=CAD,CNY limits the currency step; --tiles-only skips Commons (offline / rejected images) */
+const CODES = process.argv.find((a) => a.startsWith("--codes="))?.split("=")[1]?.split(",");
+const TILES_ONLY = process.argv.includes("--tiles-only");
 const UA = "apm-forex-asset-fetcher/1.0 (setup script)";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
@@ -186,13 +189,32 @@ const SEARCH_OVERRIDES: Record<string, string[]> = {};
 const strip = (html: string) => html.replace(/<[^>]+>/g, "").replace(/\s+/g, " ").trim();
 const ACCEPTED_LICENCE = /^(public domain|pd|cc0|cc[ -]by(-sa)?([ -]\d(\.\d)?)?|cc by(-sa)? \d\.\d)/i;
 
+/** distinctive words of the currency name (e.g. "Thai Baht" -> ["thai","baht"]) plus the ISO code */
+const nameTokens = (c: CurrencyMeta) => [
+  c.code.toLowerCase(),
+  ...c.name
+    .toLowerCase()
+    .split(/\s+/)
+    .filter((w) => w.length > 2 && !["dollar", "pound", "rupee"].includes(w)),
+];
+
 async function findCommonsImage(c: CurrencyMeta) {
   const queries = SEARCH_OVERRIDES[c.code] ?? [`${c.name} banknote`, `${c.code} banknote`, `${c.name} note`];
   for (const q of queries) {
     const s = await getJson<CommonsSearch>(
       `https://commons.wikimedia.org/w/api.php?action=query&list=search&srnamespace=6&srlimit=10&format=json&srsearch=${encodeURIComponent(q)}`,
     );
-    const titles = (s.query?.search ?? []).map((r) => r.title).filter((t) => /\.(jpe?g|png|webp)$/i.test(t) && !/coin|\bmap\b|logo|chart|graph|stamp/i.test(t));
+    const titles = (s.query?.search ?? [])
+      .map((r) => r.title)
+      .filter(
+        (t) =>
+          /\.(jpe?g|png|webp)$/i.test(t) &&
+          // must look like a banknote of *this* currency (search ranking alone picks unrelated photos)
+          /banknote|bank note|\bnote\b|\bbill\b|obverse/i.test(t) &&
+          nameTokens(c).some((tok) => t.toLowerCase().includes(tok)) &&
+          // skip non-banknote and historical/obsolete issues (e.g. "Confederate 100 Dollars" for USD)
+          !/coin|\bmap\b|logo|chart|graph|stamp|confederate|obsolete|counterfeit|fake|\bold\b|first|original series|proof|museum|hell|joss|mengjiang|\b1[0-9]\d\d\b/i.test(t),
+      );
     if (!titles.length) continue;
     const info = await getJson<CommonsInfo>(
       `https://commons.wikimedia.org/w/api.php?action=query&prop=imageinfo&iiprop=url|size|mime|extmetadata&iiurlwidth=900&format=json&titles=${encodeURIComponent(titles.join("|"))}`,
@@ -261,13 +283,18 @@ async function fetchCurrencies() {
   let rateLimited = 0;
   for (const c of CURRENCY_META) {
     const file = path.join(dir, `${c.code}.webp`);
+    if (CODES && !CODES.includes(c.code)) {
+      if (prev[c.code]) credits[c.code] = prev[c.code];
+      continue;
+    }
     const prevEntry = prev[c.code] as { type?: string } | undefined;
     // keep photos; retry designed tiles (e.g. after a rate-limited run) unless --force
-    if (existsSync(file) && !FORCE && prevEntry?.type === "photo") {
+    if (existsSync(file) && !FORCE && !CODES && prevEntry?.type === "photo") {
       credits[c.code] = prev[c.code];
       continue;
     }
     try {
+      if (TILES_ONLY) throw new Error("--tiles-only");
       if (rateLimited >= 3) throw new Error("Commons API rate-limited this run; re-run later to retry");
       await sleep(1200); // be polite to the Commons API
       const hit = await findCommonsImage(c);
