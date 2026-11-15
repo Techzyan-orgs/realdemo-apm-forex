@@ -7,7 +7,12 @@ import { inputClass } from "@/components/ui/Field";
 import { EXCLUDED_COUNTRY_INFO, EXCLUDED_SEARCH_TERMS } from "@/data/countries";
 import { cn } from "@/lib/format";
 
-export type CountryOption = { iso2: string; country: string; currency: string; currencyName: string };
+export type CountryOption = {
+  iso2: string;
+  country: string;
+  currency: string;
+  currencyName: string;
+};
 
 type Props = {
   id?: string;
@@ -17,12 +22,23 @@ type Props = {
   invalid?: boolean;
   describedBy?: string;
   className?: string;
+  /** borderless trigger for use inside a segmented field group */
+  bare?: boolean;
 };
 
 const norm = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase();
 
 /** Searchable "Country (Currency)" combobox. Search matches country name, currency name and code. */
-export function CountryCombobox({ id, options, value, onChange, invalid, describedBy, className }: Props) {
+export function CountryCombobox({
+  id,
+  options,
+  value,
+  onChange,
+  invalid,
+  describedBy,
+  className,
+  bare,
+}: Props) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
@@ -33,11 +49,19 @@ export function CountryCombobox({ id, options, value, onChange, invalid, describ
   const filtered = useMemo(() => {
     const q = norm(query.trim());
     if (!q) return options;
-    return options.filter((o) => norm(o.country).includes(q) || norm(o.currencyName).includes(q) || o.currency.toLowerCase().includes(q) || o.iso2.toLowerCase() === q);
+    return options.filter(
+      (o) =>
+        norm(o.country).includes(q) ||
+        norm(o.currencyName).includes(q) ||
+        o.currency.toLowerCase().includes(q) ||
+        o.iso2.toLowerCase() === q,
+    );
   }, [options, query]);
 
   const q = norm(query.trim());
-  const excluded = Object.entries(EXCLUDED_SEARCH_TERMS).find(([term]) => q.length >= 2 && (term.startsWith(q) || q.startsWith(term)))?.[1];
+  const excluded = Object.entries(EXCLUDED_SEARCH_TERMS).find(
+    ([term]) => q.length >= 2 && (term.startsWith(q) || q.startsWith(term)),
+  )?.[1];
   const excludedNote = excluded ? EXCLUDED_COUNTRY_INFO[excluded] : null;
 
   const choose = (o: CountryOption) => {
@@ -64,7 +88,10 @@ export function CountryCombobox({ id, options, value, onChange, invalid, describ
   };
 
   // keep the active option in view
-  const scrollActive = (i: number) => listRef.current?.querySelector<HTMLElement>(`[data-index="${i}"]`)?.scrollIntoView({ block: "nearest" });
+  const scrollActive = (i: number) =>
+    listRef.current
+      ?.querySelector<HTMLElement>(`[data-index="${i}"]`)
+      ?.scrollIntoView({ block: "nearest" });
 
   return (
     <Popover.Root
@@ -72,7 +99,10 @@ export function CountryCombobox({ id, options, value, onChange, invalid, describ
       onOpenChange={(o) => {
         setOpen(o);
         if (o) {
-          const i = Math.max(0, options.findIndex((x) => x.iso2 === value));
+          const i = Math.max(
+            0,
+            options.findIndex((x) => x.iso2 === value),
+          );
           setActive(i);
           requestAnimationFrame(() => scrollActive(i));
         }
@@ -87,7 +117,13 @@ export function CountryCombobox({ id, options, value, onChange, invalid, describ
         aria-haspopup="listbox"
         aria-invalid={invalid}
         aria-describedby={describedBy}
-        className={cn(inputClass, "flex items-center gap-2 text-left", className)}
+        className={cn(
+          bare
+            ? "flex h-7 w-full items-center gap-2 text-left text-[15px] font-medium text-ink outline-none"
+            : inputClass,
+          !bare && "flex items-center gap-2 text-left",
+          className,
+        )}
         data-testid="country-combobox"
       >
         {selected ? (
@@ -120,22 +156,37 @@ export function CountryCombobox({ id, options, value, onChange, invalid, describ
               }}
               onKeyDown={(e) => {
                 onKeyDown(e);
-                requestAnimationFrame(() => scrollActive(e.key === "ArrowDown" ? active + 1 : e.key === "ArrowUp" ? active - 1 : active));
+                requestAnimationFrame(() =>
+                  scrollActive(
+                    e.key === "ArrowDown" ? active + 1 : e.key === "ArrowUp" ? active - 1 : active,
+                  ),
+                );
               }}
               placeholder="Search country or currency"
               aria-label="Search country or currency"
               aria-controls={listId}
-              aria-activedescendant={filtered[active] ? `${listId}-${filtered[active].iso2}` : undefined}
+              aria-activedescendant={
+                filtered[active] ? `${listId}-${filtered[active].iso2}` : undefined
+              }
               className="h-11 flex-1 bg-transparent text-[15px] outline-none placeholder:text-ink-muted/70"
             />
           </div>
           {excludedNote && (
-            <p role="status" className="flex gap-2 border-b border-line bg-warn-soft px-3 py-2.5 text-xs leading-5 text-warn">
+            <p
+              role="status"
+              className="flex gap-2 border-b border-line bg-warn-soft px-3 py-2.5 text-xs leading-5 text-warn"
+            >
               <Info className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
               {excludedNote}
             </p>
           )}
-          <ul ref={listRef} id={listId} role="listbox" aria-label="Countries" className="max-h-72 overflow-y-auto p-1.5">
+          <ul
+            ref={listRef}
+            id={listId}
+            role="listbox"
+            aria-label="Countries"
+            className="max-h-72 overflow-y-auto p-1.5"
+          >
             {filtered.map((o, i) => (
               <li
                 key={o.iso2}
@@ -158,7 +209,9 @@ export function CountryCombobox({ id, options, value, onChange, invalid, describ
                 {o.iso2 === value && <Check className="h-4 w-4 text-accent" aria-hidden="true" />}
               </li>
             ))}
-            {filtered.length === 0 && <li className="px-3 py-6 text-center text-sm text-ink-muted">No matching country</li>}
+            {filtered.length === 0 && (
+              <li className="px-3 py-6 text-center text-sm text-ink-muted">No matching country</li>
+            )}
           </ul>
         </Popover.Content>
       </Popover.Portal>
@@ -167,8 +220,12 @@ export function CountryCombobox({ id, options, value, onChange, invalid, describ
 }
 
 /** Build combobox options from enabled currencies (each currency lists its countries). */
-export function countryOptions(currencies: { code: string; name: string; countries: { iso2: string; name: string }[] }[]): CountryOption[] {
+export function countryOptions(
+  currencies: { code: string; name: string; countries: { iso2: string; name: string }[] }[],
+): CountryOption[] {
   const out: CountryOption[] = [];
-  for (const c of currencies) for (const k of c.countries) out.push({ iso2: k.iso2, country: k.name, currency: c.code, currencyName: c.name });
+  for (const c of currencies)
+    for (const k of c.countries)
+      out.push({ iso2: k.iso2, country: k.name, currency: c.code, currencyName: c.name });
   return out.sort((a, b) => a.country.localeCompare(b.country));
 }

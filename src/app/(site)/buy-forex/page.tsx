@@ -63,7 +63,7 @@ export default async function BuyForexPage() {
         title="Foreign currency for your trip, ready when you are"
         intro="Choose your currency and amount, complete KYC online and pay after approval. Get it delivered to your door or pick it up at our Dum Dum store."
         side="BUY"
-        currencies={currencies.map((c) => ({ code: c.code, name: c.name, countries: c.countries }))}
+        currencies={currencies.map((c) => ({ code: c.code, name: c.name, countries: c.countries, buyRate: c.buyRate, sellRate: c.sellRate }))}
       />
       <div className="mx-auto grid max-w-7xl gap-16 px-4 py-16 sm:px-6">
         <RateTable currencies={currencies} side="BUY" updatedAt={settings.ratesUpdatedAt} />

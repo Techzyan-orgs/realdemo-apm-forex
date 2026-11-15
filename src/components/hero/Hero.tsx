@@ -10,7 +10,15 @@ export async function Hero() {
     <section id="hero" data-hero className="relative">
       <HeroCarousel banners={banners} />
       <div className="relative z-10 mx-auto -mt-10 max-w-7xl px-4 sm:-mt-16 sm:px-6 lg:-mt-[76px]">
-        <OrderWidget currencies={currencies.map((c) => ({ code: c.code, name: c.name, countries: c.countries }))} />
+        <OrderWidget
+          currencies={currencies.map((c) => ({
+            code: c.code,
+            name: c.name,
+            countries: c.countries,
+            buyRate: c.buyRate,
+            sellRate: c.sellRate,
+          }))}
+        />
       </div>
     </section>
   );

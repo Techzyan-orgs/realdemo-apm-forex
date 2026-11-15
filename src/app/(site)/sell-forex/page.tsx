@@ -49,7 +49,7 @@ export default async function SellForexPage() {
         title="Back from your trip? Turn leftover notes into rupees"
         intro="Get today's buy-back rate, place your order online and complete the exchange at our counter with an encashment certificate."
         side="SELL"
-        currencies={currencies.map((c) => ({ code: c.code, name: c.name, countries: c.countries }))}
+        currencies={currencies.map((c) => ({ code: c.code, name: c.name, countries: c.countries, buyRate: c.buyRate, sellRate: c.sellRate }))}
       />
       <div className="mx-auto grid max-w-7xl gap-16 px-4 py-16 sm:px-6">
         <RateTable currencies={currencies} side="SELL" updatedAt={settings.ratesUpdatedAt} />

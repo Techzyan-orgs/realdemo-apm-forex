@@ -1,6 +1,6 @@
 import { OrderWidget } from "@/components/hero/OrderWidget";
 
-type CurrencyLite = { code: string; name: string; countries: { iso2: string; name: string }[] };
+type CurrencyLite = { code: string; name: string; countries: { iso2: string; name: string }[]; buyRate?: number; sellRate?: number };
 
 /** Inner-page hero with the order widget locked to one side. */
 export function PageHero({ eyebrow, title, intro, side, currencies }: { eyebrow: string; title: string; intro: string; side: "BUY" | "SELL"; currencies: CurrencyLite[] }) {
