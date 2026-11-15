@@ -1,15 +1,19 @@
 {
   "USD": {
-    "type": "designed-tile",
+    "type": "photo",
     "file": "/currencies/USD.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "title": "File:Obverse of the series 2009 $100 Federal Reserve Note.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Obverse_of_the_series_2009_$100_Federal_Reserve_Note.jpg",
+    "author": "Bureau of Engraving and Printing",
+    "licence": "Public domain"
   },
   "EUR": {
-    "type": "designed-tile",
+    "type": "photo",
     "file": "/currencies/EUR.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "title": "File:Euro banknotes, Europa series.png",
+    "source": "https://commons.wikimedia.org/wiki/File:Euro_banknotes,_Europa_series.png",
+    "author": "Bericht",
+    "licence": "CC0"
   },
   "GBP": {
     "type": "designed-tile",
@@ -24,10 +28,12 @@
     "licence": "Original artwork; flag from flagcdn.com (public domain)"
   },
   "SGD": {
-    "type": "designed-tile",
+    "type": "photo",
     "file": "/currencies/SGD.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "title": "File:Tampak depan 2 dolar potret kertas.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Tampak_depan_2_dolar_potret_kertas.jpg",
+    "author": "Camelista27",
+    "licence": "CC0"
   },
   "THB": {
     "type": "designed-tile",
@@ -48,16 +54,20 @@
     "licence": "Original artwork; flag from flagcdn.com (public domain)"
   },
   "CHF": {
-    "type": "designed-tile",
+    "type": "photo",
     "file": "/currencies/CHF.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "title": "File:CHF 100 9 front.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:CHF_100_9_front.jpg",
+    "author": "Swiss National Bank (SNB)",
+    "licence": "Public domain"
   },
   "JPY": {
-    "type": "designed-tile",
+    "type": "photo",
     "file": "/currencies/JPY.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "title": "File:New 10000 yen banknote obverse.png",
+    "source": "https://commons.wikimedia.org/wiki/File:New_10000_yen_banknote_obverse.png",
+    "author": "国立印刷局",
+    "licence": "CC BY 4.0"
   },
   "SAR": {
     "type": "designed-tile",
@@ -96,10 +106,12 @@
     "licence": "Original artwork; flag from flagcdn.com (public domain)"
   },
   "OMR": {
-    "type": "designed-tile",
+    "type": "photo",
     "file": "/currencies/OMR.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "title": "File:Omani Rial 2025 Polymer (Obverse).jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Omani_Rial_2025_Polymer_(Obverse).jpg",
+    "author": "Unknown authorUnknown author",
+    "licence": "CC0"
   },
   "KWD": {
     "type": "designed-tile",
@@ -126,10 +138,12 @@
     "licence": "Original artwork; flag from flagcdn.com (public domain)"
   },
   "IDR": {
-    "type": "designed-tile",
+    "type": "photo",
     "file": "/currencies/IDR.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "title": "File:TE-2022-100000-depan.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:TE-2022-100000-depan.jpg",
+    "author": "Bank Indonesia",
+    "licence": "Public domain"
   },
   "VND": {
     "type": "designed-tile",
@@ -144,10 +158,12 @@
     "licence": "Original artwork; flag from flagcdn.com (public domain)"
   },
   "TRY": {
-    "type": "designed-tile",
+    "type": "photo",
     "file": "/currencies/TRY.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "title": "File:10 Türk Lirası front.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:10_T%C3%BCrk_Liras%C4%B1_front.jpg",
+    "author": "Central Bank of the Republic of Turkey",
+    "licence": "Public domain"
   },
   "SEK": {
     "type": "designed-tile",
@@ -168,10 +184,12 @@
     "licence": "Original artwork; flag from flagcdn.com (public domain)"
   },
   "RUB": {
-    "type": "designed-tile",
+    "type": "photo",
     "file": "/currencies/RUB.webp",
-    "source": "generated",
-    "licence": "Original artwork; flag from flagcdn.com (public domain)"
+    "title": "File:Banknote 5000 rubles 2010 front.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Banknote_5000_rubles_2010_front.jpg",
+    "author": "Центробанк РФ",
+    "licence": "Public domain"
   },
   "EGP": {
     "type": "designed-tile",
