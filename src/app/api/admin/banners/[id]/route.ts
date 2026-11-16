@@ -34,7 +34,7 @@ export async function PATCH(req: Request, ctx: { params: Promise<{ id: string }>
   };
   const updated = await prisma.$transaction(async (tx) => {
     const u = await tx.banner.update({ where: { id }, data });
-    await audit(tx, { actor: g.admin.name, action: "banner.update", entity: "Banner", entityId: id, before: { alt: banner.alt, active: banner.active }, after: data, ip: clientIp(req) });
+    await audit(tx, { actor: g.admin.name, action: "banner.update", entity: "Banner", entityId: id, before: { alt: banner.alt, headline: banner.headline, subline: banner.subline, active: banner.active }, after: data, ip: clientIp(req) });
     return u;
   });
   refreshBannerCache();

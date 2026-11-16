@@ -82,7 +82,7 @@ export function HeroCarousel({ banners }: { banners: Banner[] }) {
                 aria-hidden="true"
               />
               {(b.headline || b.subline) && (
-                <div className="absolute inset-x-0 top-[38%] mx-auto max-w-7xl px-4 sm:top-[28%] sm:px-6">
+                <div className="absolute inset-x-0 top-[41%] mx-auto max-w-7xl px-4 sm:top-[33%] sm:px-6">
                   <div className="max-w-xl text-white">
                     {b.headline && (
                       <p className="font-display text-xl font-bold leading-tight tracking-tight sm:text-4xl lg:text-5xl">
@@ -145,7 +145,7 @@ export function HeroCarousel({ banners }: { banners: Banner[] }) {
           >
             <ChevronRight className="h-5 w-5" />
           </button>
-          <div className="absolute inset-x-0 bottom-11 z-10 flex justify-center gap-1.5 sm:bottom-auto sm:top-[66%] lg:top-[70%]">
+          <div className="absolute inset-x-0 bottom-11 z-10 flex justify-center gap-1.5 sm:bottom-auto sm:top-[72%] lg:top-[78%]">
             {banners.map((b, i) => (
               <button
                 key={b.id}
