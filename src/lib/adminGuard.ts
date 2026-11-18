@@ -1,9 +1,13 @@
 /**
- * Admin auth seam (security.admin_auth_seam). Admin auth is intentionally DEFERRED.
- * While ADMIN_AUTH_ENABLED=false every request is allowed and the admin layout shows a
- * red "Auth disabled - do not deploy publicly" bar. To switch on real auth later, implement
- * the check inside requireAdmin() only - proxy.ts and the routes already call it.
+ * Admin auth seam (security.admin_auth_seam). proxy.ts applies requireAdmin() to /admin/* and
+ * /api/admin/*, and every admin route handler calls guardAdmin() again.
+ *
+ * ADMIN_AUTH_ENABLED=true  -> owner login required (signed session cookie, see src/lib/adminAuth.ts).
+ * ADMIN_AUTH_ENABLED=false -> everything is allowed and the admin layout shows a red
+ *                             "Auth disabled - do not deploy publicly" bar (local development only).
  */
+import { SESSION_COOKIE, authConfig, readCookie, verifySessionToken } from "@/lib/adminAuth";
+
 export const adminAuthEnabled = () => process.env.ADMIN_AUTH_ENABLED === "true";
 
 export type AdminIdentity = { id: string; name: string };
@@ -11,9 +15,10 @@ export type AdminIdentity = { id: string; name: string };
 /** Returns the admin identity, or null when the request is not authorised. */
 export async function requireAdmin(request: Request): Promise<AdminIdentity | null> {
   if (!adminAuthEnabled()) return { id: "admin", name: "Admin (auth disabled)" };
-  // TODO(auth): verify a session cookie / bearer token here.
-  void request;
-  return null;
+  const cfg = authConfig();
+  if (!cfg) return null; // enabled but not configured: fail closed
+  const session = verifySessionToken(readCookie(request.headers.get("cookie"), SESSION_COOKIE), cfg);
+  return session ? { id: "owner", name: `Owner (${session.sub})` } : null;
 }
 
 /** Helper for route handlers: returns a 401 Response when not authorised. */

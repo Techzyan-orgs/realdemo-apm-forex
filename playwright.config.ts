@@ -12,6 +12,8 @@ const env = {
   // nested under .next so the dev file-watcher ignores it (a sibling .next-* dir causes reload loops)
   NEXT_DIST_DIR: `.next/e2e-${PORT}`,
   DISABLE_RATE_LIMIT: "false",
+  // the existing suites drive /admin directly; owner login is covered by tests/unit/adminAuth.test.ts
+  ADMIN_AUTH_ENABLED: "false",
   NEXT_PUBLIC_SITE_URL: `http://localhost:${PORT}`,
 };
 for (const [k, v] of Object.entries(env)) process.env[k] = v;

@@ -7,9 +7,9 @@ order history, daily GST/service-charge settings and hero banners.
 The full product spec lives in [`docs/spec.json`](docs/spec.json). Compliance assumptions that
 need sign-off are tracked in [`COMPLIANCE_TODO.md`](COMPLIANCE_TODO.md).
 
-> **Admin authentication is intentionally disabled** (`ADMIN_AUTH_ENABLED=false`). The admin UI shows
-> a red "Auth disabled - do not deploy publicly" bar. Do not expose `/admin` publicly until it is
-> implemented - see [Admin auth](#admin-auth-deferred).
+> **Admin login:** set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env`, then restart.
+> With `ADMIN_AUTH_ENABLED=false` the admin is open and shows a red "Auth disabled - do not deploy
+> publicly" bar - local development only. See [Admin login](#admin-login).
 
 ## Stack
 
@@ -78,7 +78,9 @@ npm run dev
 | `DATABASE_URL` | `file:./dev.db` (SQLite) or a Postgres URL (change `provider` in `prisma/schema.prisma`) |
 | `STORAGE_DIR` | KYC/banner uploads, outside `/public`, git-ignored (`./storage`) |
 | `ORDER_TOKEN_SECRET` | HMAC secret (32+ chars) for order access tokens |
-| `ADMIN_AUTH_ENABLED` | `false` until real admin auth exists |
+| `ADMIN_AUTH_ENABLED` | `true` requires the owner login for `/admin`; `false` = open admin (local development only) |
+| `ADMIN_EMAIL`, `ADMIN_PASSWORD` | Owner login for `/admin` (plain password in `.env`: demo setup) |
+| `ADMIN_SESSION_SECRET` | Optional key for signing the session cookie; derived from `ADMIN_PASSWORD` + `ORDER_TOKEN_SECRET` when empty |
 | `NEXT_PUBLIC_SITE_URL` | Canonical site URL |
 | `NEXT_PUBLIC_WHATSAPP_NUMBER`, `NEXT_PUBLIC_SUPPORT_PHONE`, `NEXT_PUBLIC_SUPPORT_EMAIL`, `NEXT_PUBLIC_STORE_HOURS`, `NEXT_PUBLIC_GRIEVANCE_OFFICER` | Contact details (placeholders until supplied by the owner) |
 | `NEXT_PUBLIC_RBI_LICENCE_TYPE`, `NEXT_PUBLIC_RBI_LICENCE_NO` | Shown in the footer (DISC-1) |
@@ -115,12 +117,23 @@ npm run dev
 - The Track Order rate limit and other limits key on `X-Forwarded-For`; deploy behind a proxy that
   sets it, otherwise clients can spoof it.
 
-## Admin auth (deferred)
+## Admin login
 
-`src/lib/adminGuard.ts` exports `requireAdmin(request)`. `src/proxy.ts` applies it to `/admin/*`
-and `/api/admin/*`, and every admin route handler calls it again. While
-`ADMIN_AUTH_ENABLED=false` it allows everything. To turn on auth, implement the session/token
-check inside `requireAdmin()` and set `ADMIN_AUTH_ENABLED=true` - nothing else needs refactoring.
+A single owner account protects `/admin` and `/api/admin/*`.
+
+- **Set or change the login:** edit `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env` and restart the app.
+  This demo keeps the password in plain text in `.env`; before a real deployment, keep it in the
+  host's secret store (or switch to a hashed password).
+- **Sessions:** a signed, HTTP-only, `SameSite=Lax` cookie valid for 12 hours (`Secure` in production).
+  The cookie never contains the password. Changing the password (or `ADMIN_SESSION_SECRET`) signs out
+  every session.
+- **Lockout:** 5 failed attempts from one IP lock that IP out for 15 minutes (in-memory, per process).
+- **Audit:** sign-ins, failed attempts and sign-outs are written to `AuditLog`; admin actions are
+  recorded as `Owner (<email>)`.
+- **How it fits:** `src/lib/adminAuth.ts` (config, sessions, lockout), `src/lib/adminGuard.ts`
+  (`requireAdmin`, called by `src/proxy.ts` for every admin request and again by each admin route),
+  `/admin/login` (page) and `/api/admin/auth/login|logout`.
+- Fails closed: if `ADMIN_AUTH_ENABLED=true` but `ADMIN_EMAIL` or `ADMIN_PASSWORD` is empty, nobody can sign in.
 
 ## Plugging in a real payment provider
 

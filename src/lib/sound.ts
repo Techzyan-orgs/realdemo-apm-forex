@@ -3,11 +3,14 @@
  * Admin notification tones generated with the Web Audio API (no audio files).
  * normal order  : single soft ping 880 Hz, 150 ms
  * high-value    : rising triple chime 660 / 880 / 1175 Hz
- * Browsers block autoplay, so audio must be unlocked by a click once per session.
+ * Sound is ON by default. Browsers only let a page start audio after the user interacts with it,
+ * so the first click / key press anywhere on the admin page unlocks it automatically.
+ * Turning sound off needs the admin password (see SoundToggle + /api/admin/auth/confirm-password).
  * All calls go through the `sound` object so tests can wrap its methods (window.__apmSound in dev).
  */
 
-const PREF_KEY = "apm-admin-sound";
+// v2: default changed to ON; the old key (default off) is ignored
+const PREF_KEY = "apm-admin-sound-v2";
 
 type Listener = (s: SoundState) => void;
 export type SoundState = { preference: boolean; unlocked: boolean };
@@ -30,20 +33,51 @@ function tone(ac: AudioContext, freq: number, start: number, duration: number, p
 
 function readPref() {
   try {
-    return localStorage.getItem(PREF_KEY) === "on";
+    return localStorage.getItem(PREF_KEY) !== "off"; // default on
   } catch {
-    return false;
+    return true;
   }
 }
 
 export const sound = {
-  state: { preference: false, unlocked: false } as SoundState,
+  state: { preference: true, unlocked: false } as SoundState,
   /** counters - handy for debugging and tests */
   calls: { normal: 0, highValue: 0 },
 
   init() {
     sound.state = { preference: readPref(), unlocked: !!ctx && ctx.state === "running" };
     sound.emit();
+    if (sound.state.unlocked) return;
+    void sound.unlock(); // succeeds right away if the browser already allows audio
+    // otherwise the first interaction anywhere on the page unlocks it
+    const onGesture = () => {
+      void sound.unlock().then(() => {
+        if (sound.state.unlocked) {
+          document.removeEventListener("pointerdown", onGesture, true);
+          document.removeEventListener("keydown", onGesture, true);
+        }
+      });
+    };
+    document.addEventListener("pointerdown", onGesture, true);
+    document.addEventListener("keydown", onGesture, true);
+  },
+  /** Create / resume the AudioContext silently. */
+  async unlock() {
+    try {
+      ctx ??= new (
+        window.AudioContext ||
+        (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
+      )();
+      if (ctx.state !== "running")
+        await Promise.race([ctx.resume(), new Promise((r) => setTimeout(r, 300))]);
+    } catch {
+      /* audio unavailable */
+    }
+    const unlocked = !!ctx && ctx.state === "running";
+    if (unlocked !== sound.state.unlocked) {
+      sound.state = { ...sound.state, unlocked };
+      sound.emit();
+    }
   },
   subscribe(fn: Listener) {
     listeners.add(fn);
@@ -52,14 +86,9 @@ export const sound = {
   emit() {
     for (const l of listeners) l({ ...sound.state });
   },
-  /** Must be called from a user gesture (click). */
+  /** Turn sound back on (from a click); plays a confirmation ping. */
   async enable() {
-    try {
-      ctx ??= new (window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext)();
-      await ctx.resume();
-    } catch {
-      /* audio unavailable */
-    }
+    await sound.unlock();
     try {
       localStorage.setItem(PREF_KEY, "on");
     } catch {}
@@ -67,6 +96,7 @@ export const sound = {
     sound.emit();
     sound.playNormal();
   },
+  /** Turn sound off. The UI only calls this after the admin password has been confirmed. */
   disable() {
     try {
       localStorage.setItem(PREF_KEY, "off");
